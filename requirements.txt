@@ -9,6 +9,6 @@ python-dotenv
 pytz
 requests
 streamlit
-streamlit_authenticator==0.1.5
-streamlit_option_menu
+streamlit-authenticator==0.1.5
+streamlit-option-menu
 ta

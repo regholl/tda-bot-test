@@ -1,5 +1,6 @@
 datetime
 deta
+gunicorn
 kaleido
 numpy
 pandas

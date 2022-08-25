@@ -19,3 +19,5 @@ Tyler Potts
 https://www.upwork.com/freelancers/~017b47f3ae680d2ef7
 https://www.linkedin.com/in/tyler-potts-022b6573/
 twpotts11@gmail.com
+
+To do: Fix market open (minutes_until_close), Heroku CLI install, Heroku deploy, 5 second delay

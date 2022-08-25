@@ -1,0 +1,12 @@
+datetime
+deta
+kaleido
+numpy
+pandas
+plotly
+python-dotenv
+pytz
+requests
+streamlit
+streamlit_authenticator==0.1.5
+ta

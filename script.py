@@ -2,6 +2,7 @@
 
 # Import required packages
 
+from boto.s3.connection import S3Connection
 import datetime as dt
 from deta import Deta
 import json
@@ -18,8 +19,11 @@ import time
 # Define database function
 
 def connect_db():
-    load_dotenv(".env")
-    DETA_KEY = os.getenv("DETA_KEY")
+    env = load_dotenv(".env")
+    if env:
+        DETA_KEY = os.getenv("DETA_KEY")
+    else:
+        DETA_KEY = S3Connection(os.environ['DETA_KEY'])
     deta = Deta(DETA_KEY)
     return deta
 
@@ -37,10 +41,11 @@ def run():
 
     # Connect to Deta
 
-    config_db = connect_db().Base("config_db")
+    deta = connect_db()
+    config_db = deta.Base("config_db")
     tda_account = config_db.get("TDA_ACCOUNT")['value']
 
-    tickers_db = connect_db().Base("tickers_db")
+    tickers_db = deta.Base("tickers_db")
     tickers_info = tickers_db.fetch().items
     tickers = [item["key"].upper() for item in tickers_info]
     period_types = [item["period_type"] for item in tickers_info]

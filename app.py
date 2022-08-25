@@ -1,5 +1,6 @@
 # Import packages
 
+from boto.s3.connection import S3Connection # pip install boto
 import datetime as dt # pip install datetime
 from deta import Deta  # pip install deta
 from dotenv import load_dotenv  # pip install python-dotenv
@@ -22,14 +23,18 @@ from tda import *
 
 # @st.cache
 def connect_db():
-    load_dotenv(".env")
-    DETA_KEY = os.getenv("DETA_KEY")
+    env = load_dotenv(".env")
+    if env:
+        DETA_KEY = os.getenv("DETA_KEY")
+    else:
+        DETA_KEY = S3Connection(os.environ['DETA_KEY'])
     deta = Deta(DETA_KEY)
     return deta
 
-config_db = connect_db().Base("config_db")
-users_db = connect_db().Base("users_db")
-tickers_db = connect_db().Base("tickers_db")
+deta = connect_db()
+config_db = deta.Base("config_db")
+users_db = deta.Base("users_db")
+tickers_db = deta.Base("tickers_db")
 
 # Set page config
 

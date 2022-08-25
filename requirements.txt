@@ -10,4 +10,5 @@ pytz
 requests
 streamlit
 streamlit_authenticator==0.1.5
+streamlit_option_menu
 ta

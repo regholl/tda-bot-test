@@ -2,30 +2,14 @@
 
 # Import required packages
 
-from boto.s3.connection import S3Connection
 import datetime as dt
-from deta import Deta
-import json
+from db import *
 import math
 import numpy as np
-import os
 import pandas as pd
-import pytz
-import requests
 import ta
 from tda import *
 import time
-
-# Define database function
-
-def connect_db():
-    env = load_dotenv(".env")
-    if env:
-        DETA_KEY = os.getenv("DETA_KEY")
-    else:
-        DETA_KEY = S3Connection(os.environ['DETA_KEY'])
-    deta = Deta(DETA_KEY)
-    return deta
 
 # Global variables
 

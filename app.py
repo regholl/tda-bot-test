@@ -1,17 +1,10 @@
 # Import packages
 
-from boto.s3.connection import S3Connection # pip install boto
 import datetime as dt # pip install datetime
-from deta import Deta  # pip install deta
-from dotenv import load_dotenv  # pip install python-dotenv
-import json
 import math
 import numpy as np # pip install numpy
-import os
 import pandas as pd  # pip install pandas
-import pytz
 import plotly.graph_objs as go  # pip install plotly
-import requests # pip install requests
 import streamlit as st  # pip install streamlit
 import streamlit.components.v1 as components
 import streamlit_authenticator as stauth  # pip install streamlit-authenticator
@@ -20,16 +13,6 @@ import ta # pip install ta
 from tda import *
 
 # Database connection
-
-# @st.cache
-def connect_db():
-    env = load_dotenv(".env")
-    if env:
-        DETA_KEY = os.getenv("DETA_KEY")
-    else:
-        DETA_KEY = S3Connection(os.environ['DETA_KEY'])
-    deta = Deta(DETA_KEY)
-    return deta
 
 deta = connect_db()
 config_db = deta.Base("config_db")

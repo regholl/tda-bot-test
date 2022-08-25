@@ -2,22 +2,11 @@
 
 # Import packages
 
-from boto.s3.connection import S3Connection
-from deta import Deta
-from dotenv import load_dotenv
+from db import *
 import streamlit_authenticator as stauth
 import os
 
 # Connect to database
-
-def connect_db():
-    env = load_dotenv(".env")
-    if env:
-        DETA_KEY = os.getenv("DETA_KEY")
-    else:
-        DETA_KEY = S3Connection(os.environ['DETA_KEY'])
-    deta = Deta(DETA_KEY)
-    return deta
 
 deta = connect_db()
 config_db = deta.Base("config_db")

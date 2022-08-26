@@ -118,6 +118,7 @@ if auth:
     #         },
     #     )
     deta_name = config_db.get("DETA_NAME")['value']
+    bot_on = config_db.get("BOT_ON")['value']
     deta_link = f"Click here to edit these settings: [Deta](https://web.deta.sh/home/{deta_name}/default/bases/tickers_db)"
     hours = get_hours_tda()
     market_open = hours[0]
@@ -128,11 +129,16 @@ if auth:
         market_str = "OPEN"
     else:
         market_str = "CLOSED"
+    if bool(bot_on):
+        bot_str = "ON"
+    else:
+        bot_str = "OFF"
 
     # ---- SIDEBAR ----
     authenticator.logout("Logout", "sidebar")
     st.sidebar.title(f"Welcome {name}")
     st.sidebar.write(f"Market is {market_str}")
+    st.sidebar.write(f"Bot is {bot_str}")
     #if selected_menu in tickers:
     selected_side = st.sidebar.selectbox("Select Page:", options=page_options)
     if selected_side == "Chart":
@@ -205,6 +211,7 @@ if auth:
                 frequency = tickers_info[idx]['frequency']
                 extended_hours = tickers_info[idx]['extended_hours']
                 data = get_data_tda(ticker=ticker, periodType=periodType, period=period, frequencyType=frequencyType, frequency=frequency, extended_hours=extended_hours)
+                # print(data[-2:])
                 df = pd.DataFrame()
                 if frequencyType == "minute":
                     time_format = "%m/%d %H:%M"

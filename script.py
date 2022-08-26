@@ -27,6 +27,9 @@ def run():
 
     deta = connect_db()
     config_db = deta.Base("config_db")
+    bot_on = config_db.get("BOT_ON")['value']
+    if bool(bot_on) == False:
+        return False
     tda_account = config_db.get("TDA_ACCOUNT")['value']
 
     tickers_db = deta.Base("tickers_db")

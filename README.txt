@@ -4,7 +4,7 @@ This trading bot is designed to work on TD Ameritrade, and consits of the follow
     config.toml
 .env
 .gitignore
-app.python
+app.py
 db.py
 dbSetup.py
 Procfile
@@ -22,4 +22,4 @@ https://www.upwork.com/freelancers/~017b47f3ae680d2ef7
 https://www.linkedin.com/in/tyler-potts-022b6573/
 twpotts11@gmail.com
 
-To do: Fix market open (minutes_until_close), 5 second delay
+To do: 5 second delay, integrate trailing

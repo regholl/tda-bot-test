@@ -51,6 +51,7 @@ def run():
     hours = get_hours_tda()
     market_open = hours[0]
     closing_time = hours[1]
+    #current_time = hours[2]
 
     # Examine watchlist
 
@@ -246,7 +247,8 @@ def run():
     # Entry order
 
     for i in range(len(tickers)):
-        condition1 = market_open
+        # condition1 = market_open
+        condition1 = 0 < minutes_until_close < 450
         condition2 = tickers[i] not in tda_symbols_held
         condition3 = bullish_candles[i]
         condition4 = bullish_hmas[i]
@@ -264,7 +266,8 @@ def run():
     # Exit order
 
     for i in range(len(tickers)):
-        condition1 = market_open
+        # condition1 = market_open
+        condition1 = 0 < minutes_until_close < 450
         condition2 = tickers[i] in tda_symbols_held
         if condition2:
             if use_pcts[i]:

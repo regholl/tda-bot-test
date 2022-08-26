@@ -119,8 +119,12 @@ if auth:
     #     )
     deta_name = config_db.get("DETA_NAME")['value']
     deta_link = f"Click here to edit these settings: [Deta](https://web.deta.sh/home/{deta_name}/default/bases/tickers_db)"
-    market_open = get_hours_tda()
-    if market_open:
+    hours = get_hours_tda()
+    market_open = hours[0]
+    closing_time = hours[1]
+    current_time = hours[2]
+    minutes_until_close = np.round((closing_time - current_time).total_seconds() / 60, 2)
+    if 0 < minutes_until_close < 450:
         market_str = "OPEN"
     else:
         market_str = "CLOSED"

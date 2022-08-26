@@ -161,7 +161,7 @@ def get_hours_tda():
         else:
             closing_time = current_time
             market_is_open = False
-    return (market_is_open, closing_time)
+    return (market_is_open, closing_time, current_time)
 
 def get_chain_tda(ticker):
     result = {}

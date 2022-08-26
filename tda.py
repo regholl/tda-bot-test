@@ -68,8 +68,10 @@ def get_data_tda(ticker="SPY", periodType="day", period=10, frequencyType="minut
     # frequency = "minute: 1*, 5, 10, 15, 30, daily: 1*, weekly: 1*, monthly: 1*"
     # ext = False
     useEpoch = False
-    now = dt.datetime.now(tz=utc)
-    epoch = pd.Timestamp(dt.datetime.utcfromtimestamp(0),tz=utc)
+    now = dt.datetime.now()
+    epoch = dt.datetime.utcfromtimestamp(0)
+    # now = dt.datetime.now(tz=utc)
+    # epoch = pd.Timestamp(dt.datetime.utcfromtimestamp(0),tz=utc)
     epoch_now_diff = now - epoch
     epoch_to_now = epoch_now_diff.days * 24 * 60 * 60 * 1000 + (epoch_now_diff.seconds * 1000) + (int(epoch_now_diff.microseconds / 1000))
     then = now - dt.timedelta(days=1)

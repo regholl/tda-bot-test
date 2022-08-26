@@ -88,6 +88,8 @@ def get_data_tda(ticker="SPY", periodType="day", period=10, frequencyType="minut
     req = requests.get(data_url, headers = tda_headers)
     resp = json.loads(req.content)
     bars = resp['candles']
+    if bars[-1]['close'] == 0:
+        bars = bars[:-1]
     return bars
 
 def get_positions_tda():

@@ -120,6 +120,7 @@ if auth:
     deta_name = config_db.get("DETA_NAME")['value']
     bot_on = config_db.get("BOT_ON")['value']
     deta_link = f"Click here to edit these settings: [Deta](https://web.deta.sh/home/{deta_name}/default/bases/tickers_db)"
+    deta_link2 = f"[Toggle](https://web.deta.sh/home/{deta_name}/default/bases/config_db)"
     hours = get_hours_tda()
     market_open = hours[0]
     closing_time = hours[1]
@@ -139,6 +140,7 @@ if auth:
     st.sidebar.title(f"Welcome {name}")
     st.sidebar.write(f"Market is {market_str}")
     st.sidebar.write(f"Bot is {bot_str}")
+    st.sidebar.write(deta_link2)
     #if selected_menu in tickers:
     selected_side = st.sidebar.selectbox("Select Page:", options=page_options)
     if selected_side == "Chart":

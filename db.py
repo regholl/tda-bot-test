@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import os
 import streamlit as st
 
-# Connect to Deta Base
+# Connect to Deta Base (using key for secondary email)
 
 def connect_db():
     if ".env" in os.listdir():

@@ -354,10 +354,10 @@ def run():
 # Run
 
 run()
-# while True:
-#     try:
-#         run()
-#     except Exception as e:
-#         print(e)
-#         pass
-#     time.sleep(1)
+while True:
+    try:
+        run()
+    except Exception as e:
+        print(e)
+        pass
+    time.sleep(1)

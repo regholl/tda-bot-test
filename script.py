@@ -259,11 +259,11 @@ def run():
         bearish_entry = condition1 and condition2 and not condition3 and not condition4
         if bullish_entry:
             entry_symbol = chains[i]['call']
-            # entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
+            entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
             print(f"Bullish entry: Buying {contracts[i]} contracts of {entry_symbol}")
         if bearish_entry:
             entry_symbol = chains[i]['put']
-            # entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
+            entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
             print(f"Bearish entry: Buying {contracts[i]} contracts of {entry_symbol}")
 
     # Exit order
@@ -290,7 +290,7 @@ def run():
             put_exit = condition1 and condition2 and not condition4 and condition5
             if stoploss_exit or call_exit or put_exit:
                 # time.sleep(5)
-                # exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol)
+                exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol)
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
                     exit_log = exit_log + f" stop loss {stop_limit} > {stop_real}"
@@ -307,7 +307,7 @@ def run():
     time_total = np.round(time_end - time_start, 2)
     global log_count
     log_count += 1
-    if log_count % 1 == 0:
+    if log_count % 30 == 0:
         print_log = [
             ["Time", f" = {now}"],
             ["Market open", f" = {market_open}"],
@@ -336,7 +336,7 @@ def run():
             ["Extended hours",f" = {extended_hours}"],
             ["Lasts",f" = {lasts}"],
             ["Bullish Candles",f" = {bullish_candles}"],
-            ["Bullish Candles",f" = {bullish_hmas}"],
+            ["Bullish HMAs",f" = {bullish_hmas}"],
             ["Execution Speed",f" = {time_total} seconds"],
             ["---------------", "---------------"]
         ]

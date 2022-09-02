@@ -226,11 +226,11 @@ def run():
         if tickers[i] in tda_symbols_held:
             idx = tda_symbols_held.index(tickers[i])
             # costbasis = tda_costbases[idx]
-            stoploss = tickers_db[idx]['stoploss']
-            stoploss_pct = tickers_db[idx]['stoploss_pct']
-            trailing_pct = tickers_db[idx]['trailing_pct']
-            use_pct = tickers_db[idx]['use_pct']
-            use_trailing = tickers_db[idx]['use_trailing']
+            stoploss = tickers_info[idx]['stoploss']
+            stoploss_pct = tickers_info[idx]['stoploss_pct']
+            trailing_pct = tickers_info[idx]['trailing_pct']
+            use_pct = tickers_info[idx]['use_pct']
+            use_trailing = tickers_info[idx]['use_trailing']
             # max_loss_adj = np.round(costbasis * max_loss / 100, 2)
             stoploss_dict[tickers[i]] = stoploss
             stoploss_pct_dict[tickers[i]] = stoploss_pct

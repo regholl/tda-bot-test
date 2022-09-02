@@ -64,7 +64,7 @@ def run():
     lasts, bullish_candles, emas, hmas, bullish_hmas, chains = [], [], [], [], [], []
     for ticker in tickers:
 
-        # Get quotes
+        # Get quotes for underlying
 
         quote = get_quote_tda(ticker)
         last = np.round(float(quote[ticker]['lastPrice']), 2)
@@ -182,7 +182,15 @@ def run():
         tda_long_shares = []
         tda_short_shares = []
         tda_quantities = []
-    
+
+    # Get quotes for option tickers
+
+    lasts_option = []
+    for ticker in tda_tickers_held:
+        quote = get_quote_tda(ticker)
+        last_option = np.round(float(quote[ticker]['lastPrice']), 2)
+        lasts_option.append(last_option)
+
     # Adjust tickers for optional holdings
 
     tda_symbols_held = []
@@ -328,6 +336,9 @@ def run():
             ["Trailing pcts",f" = {trailing_pcts}"],
             ["Use pct?",f" = {use_pcts}"],
             ["Use trailing?",f" = {use_trailings}"],
+            ["Gainloss",f" = {tda_gainlosses}"],
+            ["Gainloss Pct",f" = {tda_gainloss_pcts}"],
+            ["Cast Basis",f" = {tda_costbases}"],
             ["Period types",f" = {period_types}"],
             ["Periods",f" = {periods}"],
             ["Frequency types",f" = {frequency_types}"],
@@ -337,7 +348,8 @@ def run():
             ["EMAs",f" = {emas}"],
             ["HMAs",f" = {hmas}"],
             ["Extended hours",f" = {extended_hours}"],
-            ["Lasts",f" = {lasts}"],
+            ["Stock Lasts",f" = {lasts}"],
+            ["Option Lasts",f" = {lasts_option}"],
             ["Bullish Candles",f" = {bullish_candles}"],
             ["Bullish HMAs",f" = {bullish_hmas}"],
             ["Execution Speed",f" = {time_total} seconds"],

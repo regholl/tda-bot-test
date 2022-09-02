@@ -14,6 +14,7 @@ import time
 # Global variables
 
 log_count = 0
+error_streak = 0
 
 # Define the strategy
 
@@ -22,6 +23,8 @@ def run():
     # Execution start
 
     time_start = time.time()
+    global error_streak
+    error_streak += 1
 
     # Connect to Deta
 
@@ -351,13 +354,19 @@ def run():
             print(i.ljust(20), end='')
         print()
 
+    # Reset error streak to 0
+
+    error_streak = 0
+
 # Run
 
-run()
 while True:
-    try:
+    if error_streak < 5:
+        try:
+            run()
+        except Exception as e:
+            print(e)
+            pass
+    else:
         run()
-    except Exception as e:
-        print(e)
-        pass
     time.sleep(1)

@@ -145,7 +145,7 @@ if auth:
     if get_dyno_list_all.status_code in [200, 201]:
         dyno_content = json.loads(dyno_content)
     detached_dyno = [dyno for dyno in dyno_content if dyno['command'] == 'python script.py']
-    if len(detached_dyno) > 1:
+    if len(detached_dyno) > 0:
         cloud_str = "ON"
     else:
         cloud_str = "OFF"

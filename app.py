@@ -282,13 +282,14 @@ if auth:
                 df['low'] = tda_lows
                 df['close'] = tda_closes
                 fig = go.Figure()
+                blank = pd.Series(" ")
                 fig.add_trace(go.Candlestick(
-                    x = df['datetime'].append(pd.Series(" ")),
-                    open = df['open'].append(pd.Series(" ")),
-                    high = df['high'].append(pd.Series(" ")),
-                    low = df['low'].append(pd.Series(" ")),
-                    close = df['close'].append(pd.Series(" ")), 
-                    name = 'Candles'
+                    x = pd.Series(pd.concat([df['datetime'], blank], ignore_index=True)),
+                    open = pd.Series(pd.concat([df['open'], blank], ignore_index=True)),
+                    high = pd.Series(pd.concat([df['high'], blank], ignore_index=True)),
+                    low = pd.Series(pd.concat([df['low'], blank], ignore_index=True)),
+                    close = pd.Series(pd.concat([df['close'], blank], ignore_index=True)),
+                    name = 'Candles',
                 ))
                 if "EMA" in selected_indicators:
                     ema_window = tickers_info[idx]['ema_length']

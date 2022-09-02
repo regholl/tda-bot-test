@@ -285,7 +285,7 @@ def run():
                 stop_real = ticker_gainloss_dict[tickers[i]]
                 condition3 = stop_limit > stop_real
             exit_symbol = held_symbol_dict[tickers[i]]
-            exit_quantity = ticker_quantity_dict[tickers[i]]
+            exit_quantity = ticker_quantity_dict[exit_symbol]
             stoploss_exit = condition1 and condition2 and condition3
             condition4 = "C" in exit_symbol.split("_")[1]
             condition5 = bullish_candles[i]

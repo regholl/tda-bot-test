@@ -130,6 +130,25 @@ if auth:
         market_str = "OPEN"
     else:
         market_str = "CLOSED"
+    heroku_token = config_db.get("HEROKU_API")['value']
+    heroku_url = 'https://api.heroku.com'
+    apps_url = '{}/apps'.format(heroku_url)
+    app_name = 'the-process'
+    headers = {
+        "Accept": "application/vnd.heroku+json; version=3",
+        "Content-Type": "application/json", 
+        "Authorization": "Bearer {}".format(heroku_token)
+    }
+    dyno_list_url_all = '{}/{}/dynos'.format(apps_url, app_name)
+    get_dyno_list_all = requests.get(dyno_list_url_all, headers = headers)
+    dyno_content = get_dyno_list_all.content
+    if get_dyno_list_all.status_code in [200, 201]:
+        dyno_content = json.loads(dyno_content)
+    detached_dyno = [dyno for dyno in dyno_content if dyno['command'] == 'python script.py']
+    if len(detached_dyno) > 1:
+        cloud_str = "ON"
+    else:
+        cloud_str = "OFF"
     if bool(bot_on):
         bot_str = "ON"
     else:
@@ -139,6 +158,7 @@ if auth:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.title(f"Welcome {name}")
     st.sidebar.write(f"Market is {market_str}")
+    st.sidebar.write(f"Cloud is {cloud_str}")
     st.sidebar.write(f"Bot is {bot_str}")
     st.sidebar.write(deta_link2)
     #if selected_menu in tickers:

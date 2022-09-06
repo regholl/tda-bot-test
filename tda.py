@@ -136,6 +136,17 @@ def get_orders_tda():
         orders = [item for item in tda_history_content if item['type'] == 'TRADE']
     return orders
 
+def get_orders2_tda():
+    tda_headers = tda_authenticate()
+    tda_account_url = '{}/v1/accounts/{}'.format(tda_base, tda_account)
+    tda_orders_url = '{}?fields=orders'.format(tda_account_url)
+    tda_orders_request = requests.get(tda_orders_url, headers = tda_headers)
+    tda_orders_content = json.loads(tda_orders_request.content)
+    orders = []
+    if 'orderStrategies' in tda_orders_content['securitiesAccount']:
+        orders = tda_orders_content['securitiesAccount']['orderStrategies']
+    return orders
+
 def get_hours_tda():
     tda_headers = tda_authenticate()
     # market_date = dt.datetime.now().strftime('%Y-%m-%d')

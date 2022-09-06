@@ -249,34 +249,23 @@ def run():
             trailing_pct_dict[tickers[i]] = trailing_pct
             use_pct_dict[tickers[i]] = use_pct
             use_trailing_dict[tickers[i]] = use_trailing
+        
+    # Get recent orders
 
-    # Make entry trades
-
+    tda_orders = get_orders2_tda()
+    time_now = dt.datetime.now(utc)
+    recent_orders = [order for order in tda_orders if (time_now - pd.to_datetime(order['enteredTime'])).seconds < 60 * 5]
+    recent_opt_tickers = [order['orderLegCollection'][0]['instrument']['symbol'] for order in recent_orders]
+    recent_tickers = [ticker.split("_")[0] for ticker in recent_opt_tickers]
+    
+    # Calculate time and make dictionaries
+    
     current_time = dt.datetime.now(tz=local_timezone)
     minutes_until_close = np.round((closing_time - current_time).total_seconds() / 60, 2)
     wl_tickers_held = list(set(tickers).intersection(tda_symbols_held))
     ticker_long_dict = dict(zip(tda_tickers_held, tda_long_shares))
     ticker_short_dict = dict(zip(tda_tickers_held, tda_short_shares))
     ticker_gainloss_dict = dict(zip(tickers, tda_gainlosses))
-
-    # Entry order
-
-    for i in range(len(tickers)):
-        # condition1 = market_open
-        condition1 = 0 < minutes_until_close < 450
-        condition2 = tickers[i] not in tda_symbols_held
-        condition3 = bullish_candles[i]
-        condition4 = bullish_hmas[i]
-        bullish_entry = condition1 and condition2 and condition3 and condition4
-        bearish_entry = condition1 and condition2 and not condition3 and not condition4
-        if bullish_entry:
-            entry_symbol = chains[i]['call']
-            entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
-            print(f"Bullish entry: Buying {contracts[i]} contracts of {entry_symbol}")
-        if bearish_entry:
-            entry_symbol = chains[i]['put']
-            entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
-            print(f"Bearish entry: Buying {contracts[i]} contracts of {entry_symbol}")
 
     # Exit order
 
@@ -303,6 +292,7 @@ def run():
             if stoploss_exit or call_exit or put_exit:
                 # time.sleep(5)
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol)
+                tda_symbols_held.remove(tickers[i])
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
                     exit_log = exit_log + f" stop loss {stop_limit} > {stop_real}"
@@ -311,6 +301,26 @@ def run():
                 elif put_exit:
                     exit_log = exit_log + f" bullish candle while holding put"
                 print(exit_log)
+
+    # Entry order
+
+    for i in range(len(tickers)):
+        # condition1 = market_open
+        condition1 = 0 < minutes_until_close < 450
+        condition2 = tickers[i] not in tda_symbols_held
+        condition3 = bullish_candles[i]
+        condition4 = bullish_hmas[i]
+        condition5 = tickers[i] not in recent_tickers
+        bullish_entry = condition1 and condition2 and condition3 and condition4 and condition5
+        bearish_entry = condition1 and condition2 and not condition3 and not condition4 and condition5
+        if bullish_entry:
+            entry_symbol = chains[i]['call']
+            entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
+            print(f"Bullish entry: Buying {contracts[i]} contracts of {entry_symbol}")
+        if bearish_entry:
+            entry_symbol = chains[i]['put']
+            entry_order = tda_submit_order("BUY_TO_OPEN", contracts[i], entry_symbol)
+            print(f"Bearish entry: Buying {contracts[i]} contracts of {entry_symbol}")
 
     # Print log
 
@@ -353,6 +363,7 @@ def run():
             ["Option Lasts",f" = {lasts_option}"],
             ["Bullish Candles",f" = {bullish_candles}"],
             ["Bullish HMAs",f" = {bullish_hmas}"],
+            ["Recent tickers",f" = {recent_tickers}"],
             ["Execution Speed",f" = {time_total} seconds"],
             ["---------------", "---------------"]
         ]

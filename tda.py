@@ -172,7 +172,7 @@ def get_chain_tda(ticker):
     contract_type = "ALL" # ALL (default), CALL, PUT
     tickers_db = connect_db().Base("tickers_db")
     delta_min = int(tickers_db.get(ticker)['delta_min'])
-    delta_min = 90
+    # delta_min = 90
     strike_count = 3
     from50 = np.round(abs(1 - delta_min / 50), 2)
     while from50 > 0:

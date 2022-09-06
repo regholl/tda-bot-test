@@ -182,6 +182,7 @@ def run():
         tda_long_shares = []
         tda_short_shares = []
         tda_quantities = []
+    tda_quantities = [int(abs(qty)) for qty in tda_quantities]
 
     # Get quotes for option tickers
 

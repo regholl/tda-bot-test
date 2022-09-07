@@ -15,6 +15,7 @@ import time
 
 log_count = 0
 error_streak = 0
+bot_on_last = False
 
 # Define the strategy
 
@@ -23,18 +24,29 @@ def run():
     # Execution start
 
     time_start = time.time()
-    global error_streak
-    error_streak += 1
 
-    # Connect to Deta
+    # Check if bot is on
 
     deta = connect_db()
     config_db = deta.Base("config_db")
-    bot_on = config_db.get("BOT_ON")['value']
-    if bool(bot_on) == False:
+    bot_on = bool(config_db.get("BOT_ON")['value'])
+    global bot_on_last
+    if bot_on_last == True and bot_on == False:
+        print("Bot turning off")
+    elif bot_on_last == False and bot_on == True:
+        print("Bot turning on")
+    bot_on_last = bot_on
+    if bot_on == False:
         return False
-    tda_account = config_db.get("TDA_ACCOUNT")['value']
 
+    # Error counter
+
+    global error_streak
+    error_streak += 1
+
+    # Extract values from Deta
+
+    tda_account = config_db.get("TDA_ACCOUNT")['value']
     tickers_db = deta.Base("tickers_db")
     tickers_info = tickers_db.fetch().items
     tickers = [item["key"].upper() for item in tickers_info]
@@ -209,12 +221,18 @@ def run():
         if ticker in tda_symbols_held:
             idx = tda_symbols_held.index(ticker)
             if tda_long_shares[idx] > 0:
-                tda_costbasis = np.round(tda_average_prices[idx] * tda_long_shares[idx], 2)
-                tda_gainloss = np.round(tda_market_values[idx] - (tda_average_prices[idx] * tda_long_shares[idx]), 2)
+                if held_symbol_dict[ticker] == ticker:
+                    tda_costbasis = np.round(tda_average_prices[idx] * tda_long_shares[idx], 2)
+                else:
+                    tda_costbasis = np.round(tda_average_prices[idx] * tda_long_shares[idx] * 100, 2)
+                tda_gainloss = np.round(tda_market_values[idx] - tda_costbasis, 2)
                 tda_gainloss_pct = np.round(tda_gainloss / tda_costbasis * 100, 2)
             elif tda_short_shares[idx] > 0:
-                tda_costbasis = np.round(tda_average_prices[idx] * tda_short_shares[idx], 2)
-                tda_gainloss = np.round(abs(tda_average_prices[idx] * tda_short_shares[idx]) - abs(tda_market_values[idx]), 2)
+                if held_symbol_dict[ticker] == ticker:
+                    tda_costbasis = np.round(tda_average_prices[idx] * tda_short_shares[idx], 2)
+                else:
+                    tda_costbasis = np.round(tda_average_prices[idx] * tda_short_shares[idx] * 100, 2)
+                tda_gainloss = np.round(abs(tda_costbasis) - abs(tda_market_values[idx]), 2)
                 tda_gainloss_pct = np.round(tda_gainloss / tda_costbasis * 100, 2)
             else:
                 tda_costbasis = 0
@@ -349,7 +367,7 @@ def run():
             ["Use trailing?",f" = {use_trailings}"],
             ["Gainloss",f" = {tda_gainlosses}"],
             ["Gainloss Pct",f" = {tda_gainloss_pcts}"],
-            ["Cast Basis",f" = {tda_costbases}"],
+            ["Cost Basis",f" = {tda_costbases}"],
             ["Period types",f" = {period_types}"],
             ["Periods",f" = {periods}"],
             ["Frequency types",f" = {frequency_types}"],

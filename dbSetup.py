@@ -13,6 +13,27 @@ config_db = deta.Base("config_db")
 users_db = deta.Base("users_db")
 tickers_db = deta.Base("tickers_db")
 
+# Fetch existing entries in config_db and delete them
+
+# items = config_db.fetch().items
+# keys = [item['key'] for item in items]
+# for key in keys:
+#     config_db.delete(key)
+
+# Fetch existing entries in users_db and delete them
+
+# items = users_db.fetch().items
+# keys = [item['key'] for item in items]
+# for key in keys:
+#     users_db.delete(key)
+
+# Fetch existing entries in tickers_db and delete them
+
+items = tickers_db.fetch().items
+keys = [item['key'] for item in items]
+for key in keys:
+    tickers_db.delete(key)
+
 # Define user properties and insert into database
 
 usernames = ["will", "tyler"]
@@ -27,13 +48,6 @@ for i in range(len(usernames)):
         "password": hashed_passwords[i]
     }
     users_db.put(entry)
-
-# Fetch existing entries and delete them
-
-# items = config_db.fetch().items
-# keys = [item['key'] for item in items]
-# for key in keys:
-#     config_db.delete(key)
 
 # Setup config database
 
@@ -51,13 +65,13 @@ for i in range(len(config_keys)):
 
 # Setup tickers database
 
-tickers = ["SWN", "SNAP", "WBD"]
+tickers = ["F", "AMC"]
 period_types = ["day"] * len(tickers)
 periods = [10] * len(tickers)
 frequency_types = ["minute"] * len(tickers)
-frequencies = [30] * len(tickers)
+frequencies = [10] * len(tickers)
 extended_hours = [False] * len(tickers)
-ema_lengths = [10] * len(tickers)
+ema_lengths = [100] * len(tickers)
 hma_lengths = [7] * len(tickers)
 contracts = [1] * len(tickers)
 stoplosses = [1000] * len(tickers)
@@ -67,6 +81,8 @@ use_pcts = [False] * len(tickers)
 use_trailings = [False] * len(tickers)
 dte_mins = [0] * len(tickers)
 delta_mins = [50] * len(tickers)
+maxes = [0] * len(tickers)
+mins = [0] * len(tickers)
 
 for i in range(len(tickers)):
     entry = {
@@ -86,5 +102,9 @@ for i in range(len(tickers)):
         "use_pct": use_pcts[i],
         "dte_min": dte_mins[i],
         "delta_min": delta_mins[i],
+        "max": maxes[i],
+        "min": mins[i]
     }
     tickers_db.put(entry)
+
+print("Deta updated")

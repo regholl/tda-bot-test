@@ -241,6 +241,16 @@ def get_chain_tda(ticker):
 
 def tda_submit_order(instruction, quantity, symbol, assetType="OPTION"):
     tda_orders_url = '{}/v1/accounts/{}/orders'.format(tda_base, tda_account)
+    if "_" not in symbol:
+        assetType = "EQUITY"
+        if instruction == "SELL_TO_OPEN":
+            instruction = "SELL_SHORT"
+        elif instruction == "BUY_TO_CLOSE":
+            instruction = "BUY_TO_COVER"
+        elif instruction == "BUY_TO_OPEN":
+            instruction = "BUY"
+        elif instruction == "SELL_TO_CLOSE":
+            instruction = "SELL"
     data = {
         "orderType": "MARKET",
         "session": "NORMAL",

@@ -58,13 +58,18 @@ def run():
     ema_lengths = [int(item["ema_length"]) for item in tickers_info]
     hma_lengths = [int(item["hma_length"]) for item in tickers_info]
     contracts = [int(item["contracts"]) for item in tickers_info]
-    stoplosses = [float(item["stoploss"]) for item in tickers_info]
-    stoploss_pcts = [float(item["stoploss_pct"]) for item in tickers_info]
-    trailing_pcts = [float(item["trailing_pct"]) for item in tickers_info]
-    use_pcts = [item["use_pct"] for item in tickers_info]
-    use_trailings = [item["use_trailing"] for item in tickers_info]
+    stoplosses = [float(item["stoploss"]) if item["stoploss"] != None else 1000000 for item in tickers_info]
+    stoploss_pcts = [float(item["stoploss_pct"]) if item["stoploss_pct"] != None else 1000000 for item in tickers_info]
+    trail_pcts = [float(item["trail_pct"]) if item["trail_pct"] != None else 1000000 for item in tickers_info]
+    use_pct_stops = [item["use_pct_stop"] for item in tickers_info]
+    use_trail_stops = [item["use_trail_stop"] for item in tickers_info]
     maxes = [float(item["max"]) for item in tickers_info]
     mins = [float(item["min"]) for item in tickers_info]
+    trigger_trails = [float(item["trigger_trail"]) for item in tickers_info]
+    trigger_trail_pcts = [float(item["trigger_trail_pct"]) for item in tickers_info]
+    take_profits = [float(item["take_profit"]) for item in tickers_info]
+    take_profit_pcts = [float(item["take_profit_pct"]) for item in tickers_info]
+    use_pct_profits = [item["use_pct_profit"] for item in tickers_info]
 
     # Create master ticker_dict
 
@@ -81,11 +86,24 @@ def run():
         ticker_dict[tickers[i]]["contracts"] = contracts[i]
         ticker_dict[tickers[i]]["stoploss"] = stoplosses[i]
         ticker_dict[tickers[i]]["stoploss_pct"] = stoploss_pcts[i]
-        ticker_dict[tickers[i]]["trailing_pct"] = trailing_pcts[i]
-        ticker_dict[tickers[i]]["use_pct"] = use_pcts[i]
-        ticker_dict[tickers[i]]["use_trailing"] = use_trailings[i]
+        ticker_dict[tickers[i]]["trail_pct"] = trail_pcts[i]
+        ticker_dict[tickers[i]]["use_pct_stop"] = use_pct_stops[i]
+        ticker_dict[tickers[i]]["use_trail_stop"] = use_trail_stops[i]
         ticker_dict[tickers[i]]["max"] = maxes[i]
         ticker_dict[tickers[i]]["min"] = mins[i]
+        ticker_dict[tickers[i]]["trigger_trail"] = trigger_trails[i]
+        ticker_dict[tickers[i]]["trigger_trail_pct"] = trigger_trail_pcts[i]
+        ticker_dict[tickers[i]]["take_profit"] = take_profits[i]
+        ticker_dict[tickers[i]]["take_profit_pct"] = take_profit_pcts[i]
+        ticker_dict[tickers[i]]["use_pct_profit"] = use_pct_profits[i]
+
+        ticker_dict[tickers[i]]["option_symbol"] = tickers[i]
+        ticker_dict[tickers[i]]["average_price"] = 0
+        ticker_dict[tickers[i]]["market_value"] = 0
+        ticker_dict[tickers[i]]["long_shares"] = 0
+        ticker_dict[tickers[i]]["short_shares"] = 0
+        ticker_dict[tickers[i]]["quantity"] = 0
+        ticker_dict[tickers[i]]["option_last"] = 0
 
     # Get market status
 
@@ -244,22 +262,22 @@ def run():
             ticker_dict[symb]["short_shares"] = tda_short_shares[i]
             ticker_dict[symb]["quantity"] = tda_quantities[i]
             ticker_dict[symb]["option_last"] = last_option
-            
+
     # Calculate gainloss from quotes and average prices
 
     tda_gainlosses, tda_costbases, tda_gainloss_pcts = [], [], []
-    for ticker in tickers:
-        if ticker in tda_symbols_held:
-            idx = tda_symbols_held.index(ticker)
+    for i in range(len(tickers)):
+        if tickers[i] in tda_symbols_held:
+            idx = tda_symbols_held.index(tickers[i])
             if tda_long_shares[idx] > 0:
-                if ticker_dict[ticker]["option_symbol"] == ticker:
+                if ticker_dict[tickers[i]]["option_symbol"] == tickers[i]:
                     tda_costbasis = np.round(tda_average_prices[idx] * tda_long_shares[idx], 2)
                 else:
                     tda_costbasis = np.round(tda_average_prices[idx] * tda_long_shares[idx] * 100, 2)
                 tda_gainloss = np.round(tda_market_values[idx] - tda_costbasis, 2)
                 tda_gainloss_pct = np.round(tda_gainloss / tda_costbasis * 100, 2)
             elif tda_short_shares[idx] > 0:
-                if ticker_dict[ticker]["option_symbol"] == ticker:
+                if ticker_dict[tickers[i]]["option_symbol"] == tickers[i]:
                     tda_costbasis = np.round(tda_average_prices[idx] * tda_short_shares[idx], 2)
                 else:
                     tda_costbasis = np.round(tda_average_prices[idx] * tda_short_shares[idx] * 100, 2)
@@ -273,12 +291,21 @@ def run():
             tda_costbasis = 0
             tda_gainloss = 0
             tda_gainloss_pct = 0
+        if tda_gainloss > trigger_trails[i] or tda_gainloss_pct > trigger_trail_pcts[i]:
+            if ticker_dict[tickers[i]]["use_trail_stop"] != True:
+                entry = tickers_db.get(tickers[i])
+                entry["use_trail_stop"] = True
+                use_trail_stops[i] = True
+                ticker_dict[tickers[i]]["use_trail_stop"] = True
+                tickers_db.put(entry)
+                print(f"Trailing stop loss triggerd due to gainloss {tda_gainloss} > trigger_trail {trigger_trails[i]} \
+                        or gainloss % {tda_gainloss_pct} > {trigger_trail_pcts[i]}")
         tda_gainlosses.append(tda_gainloss)
         tda_costbases.append(tda_costbasis)
         tda_gainloss_pcts.append(tda_gainloss_pct)
-        ticker_dict[ticker]["gainloss"] = tda_gainloss
-        ticker_dict[ticker]["costbasis"] = tda_costbasis
-        ticker_dict[ticker]["gainloss_pct"] = tda_gainloss_pct
+        ticker_dict[tickers[i]]["gainloss"] = tda_gainloss
+        ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
+        ticker_dict[tickers[i]]["gainloss_pct"] = tda_gainloss_pct
 
     # Update max and min
 
@@ -306,7 +333,17 @@ def run():
 
     tda_orders = get_orders2_tda()
     time_now = dt.datetime.now(utc)
-    recent_orders = [order for order in tda_orders if (time_now - pd.to_datetime(order['enteredTime'])).seconds < 60 * 5]
+    pause_time = float(config_db.get("PAUSE_TIME")['value'])
+    pause_unit = config_db.get("PAUSE_UNIT")['value']
+    if "sec" in pause_unit.lower():
+        pause_time = pause_time
+    elif "min" in pause_unit.lower():
+        pause_time = np.round(pause_time * 60, 1)
+    elif "hour" in pause_unit.lower():
+        pause_time = np.round(pause_time * 60 * 60, 1)
+    else:
+        pause_time = pause_time
+    recent_orders = [order for order in tda_orders if (time_now - pd.to_datetime(order['enteredTime'])).seconds < pause_time]
     recent_opt_tickers = [order['orderLegCollection'][0]['instrument']['symbol'] for order in recent_orders]
     recent_tickers = [ticker.split("_")[0] for ticker in recent_opt_tickers]
     
@@ -322,9 +359,9 @@ def run():
         condition1 = 0 < minutes_until_close < 450
         condition2 = tickers[i] in tda_symbols_held
         if condition2:
-            trailing_pct = np.negative(ticker_dict[tickers[i]]["trailing_pct"])
-            stoploss_pct = np.negative(ticker_dict[tickers[i]]["stoploss_pct"])
-            stoploss = np.negative(ticker_dict[tickers[i]]["stoploss"])
+            trail_pct = ticker_dict[tickers[i]]["trail_pct"]
+            stoploss_pct = ticker_dict[tickers[i]]["stoploss_pct"]
+            stoploss = ticker_dict[tickers[i]]["stoploss"]
             gainloss_pct = ticker_dict[tickers[i]]["gainloss_pct"]
             gainloss = ticker_dict[tickers[i]]["gainloss"]
             drawdown_from_high = ticker_dict[tickers[i]]["max"] - ticker_dict[tickers[i]]["market_value"]
@@ -335,34 +372,48 @@ def run():
             except ZeroDivisionError:
                 drawdown_pct_high = 0
                 drawdown_pct_low = 0
-            if ticker_dict[tickers[i]]["use_trailing"]:
-                condition3 = abs(drawdown_pct_high) > trailing_pct
-            elif ticker_dict[tickers[i]]["use_pct"]:
+            if ticker_dict[tickers[i]]["use_trail_stop"]:
+                condition3 = abs(drawdown_pct_high) > trail_pct
+            elif ticker_dict[tickers[i]]["use_pct_stop"]:
                 condition3 = abs(gainloss_pct) > stoploss_pct and gainloss_pct < 0
             else:
                 condition3 = abs(gainloss) > stoploss and gainloss < 0
+            take_profit = ticker_dict[tickers[i]]["take_profit"]
+            take_profit_pct = ticker_dict[tickers[i]]["take_profit_pct"]
+            if ticker_dict[tickers[i]]["use_pct_profit"]:
+                condition4 = gainloss_pct > take_profit_pct
+            else:
+                condition4 = gainloss > take_profit
             exit_symbol = ticker_dict[tickers[i]]["option_symbol"]
-            exit_quantity = ticker_dict[tickers[i]["quantity"]]
-            stoploss_exit = condition1 and condition2 and condition3
-            condition4 = "C" in exit_symbol.split("_")[1]
-            condition5 = ticker_dict[tickers[i]]["bullish_candle"]
-            call_exit = condition1 and condition2 and condition4 and not condition5
-            put_exit = condition1 and condition2 and not condition4 and condition5
-            if stoploss_exit or call_exit or put_exit:
+            exit_quantity = ticker_dict[tickers[i]]["quantity"]
+            stoploss_exit = condition1 and condition2 and condition3 and not condition4
+            profit_exit = condition1 and condition2 and not condition3 and condition4
+            condition5 = "C" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
+            condition6 = "P" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
+            condition7 = ticker_dict[tickers[i]]["bullish_candle"]
+            call_exit = condition1 and condition2 and condition5 and not condition6 and not condition7
+            put_exit = condition1 and condition2 and not condition5 and condition6 and condition7
+            if stoploss_exit or profit_exit or call_exit or put_exit:
                 # time.sleep(5)
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol)
-                tda_symbols_held.remove(tickers[i])
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
-                    if ticker_dict[tickers[i]]["use_trailing"]:
-                        exit_log = exit_log + f" drawdown % {drawdown_pct_high} > trailing % {trailing_pct}"
-                    elif ticker_dict[tickers[i]]["use_pct"]:
+                    if ticker_dict[tickers[i]]["use_trail_stop"]:
+                        exit_log = exit_log + f" drawdown % {drawdown_pct_high} > trail % {trail_pct}"
+                    elif ticker_dict[tickers[i]]["use_pct_stop"]:
                         exit_log = exit_log + f" gainloss % {gainloss_pct} > stoploss % {stoploss_pct}"
                     else:
                         exit_log = exit_log + f" gainloss {gainloss} > stoploss {stoploss}"
+                elif profit_exit:
+                    if ticker_dict[tickers[i]]["use_pct_profit"]:
+                        exit_log = exit_log + f" gainloss % {gainloss_pct} > take_profit % {take_profit_pct}"
+                    else:
+                        exit_log = exit_log + f" gainloss {gainloss} > take_profit {take_profit}"
                 elif call_exit:
+                    tda_symbols_held.remove(tickers[i])
                     exit_log = exit_log + f" bearish candle while holding call"
                 elif put_exit:
+                    tda_symbols_held.remove(tickers[i])
                     exit_log = exit_log + f" bullish candle while holding put"
                 print(exit_log)
 
@@ -409,9 +460,9 @@ def run():
             ["Contracts",f" = {contracts}"],
             ["Stoplosses",f" = {stoplosses}"],
             ["Stoploss pcts",f" = {stoploss_pcts}"],
-            ["Trailing pcts",f" = {trailing_pcts}"],
-            ["Use pct?",f" = {use_pcts}"],
-            ["Use trailing?",f" = {use_trailings}"],
+            ["Trailing pcts",f" = {trail_pcts}"],
+            ["Use pct?",f" = {use_pct_stops}"],
+            ["Use trail?",f" = {use_trail_stops}"],
             ["Gainloss",f" = {tda_gainlosses}"],
             ["Gainloss Pct",f" = {tda_gainloss_pcts}"],
             ["Maxes",f" = {maxes}"],
@@ -451,6 +502,7 @@ def run():
 
 # Run
 
+run()
 while True:
     if error_streak < 5:
         try:

@@ -77,8 +77,7 @@ contracts = [1] * len(tickers)
 stoplosses = [1000] * len(tickers)
 stoploss_pcts = [10] * len(tickers)
 trail_pcts = [10] * len(tickers)
-use_pct_stops = [False] * len(tickers)
-use_trail_stops = [False] * len(tickers)
+stoploss_types = ["Dollars"] * len(tickers)
 dte_mins = [0] * len(tickers)
 delta_mins = [50] * len(tickers)
 maxes = [0] * len(tickers)
@@ -87,7 +86,10 @@ trigger_trails = [100000] * len(tickers)
 trigger_trail_pcts = [100] * len(tickers)
 take_profits = [1000] * len(tickers)
 take_profit_pcts = [100] * len(tickers)
-use_pct_profits = [False] * len(tickers)
+take_profit_types = ["Dollars"] * len(tickers)
+confirm_times = [5] * len(tickers)
+confirm_units = ["second"] * len(tickers)
+times_in_candles = [0] * len(tickers)
 
 for i in range(len(tickers)):
     entry = {
@@ -102,9 +104,8 @@ for i in range(len(tickers)):
         "contracts": contracts[i],
         "stoploss": stoplosses[i],
         "stoploss_pct": stoploss_pcts[i],
+        "stoploss_type": stoploss_types[i],
         "trail_pct": trail_pcts[i],
-        "use_trail_stop": use_trail_stops[i],
-        "use_pct_stop": use_pct_stops[i],
         "dte_min": dte_mins[i],
         "delta_min": delta_mins[i],
         "max": maxes[i],
@@ -113,7 +114,10 @@ for i in range(len(tickers)):
         "trigger_trail_pct": trigger_trail_pcts[i],
         "take_profit": take_profits[i],
         "take_profit_pct": take_profit_pcts[i],
-        "use_pct_profit": use_pct_profits[i]
+        "take_profit_type": take_profit_types[i],
+        "confirm_time": confirm_times[i],
+        "confirm_unit": confirm_units[i],
+        "time_in_candle": times_in_candles[i],
     }
     tickers_db.put(entry)
 

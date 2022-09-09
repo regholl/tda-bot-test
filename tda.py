@@ -62,10 +62,35 @@ def get_quote_tda(symbol="SPY"):
     return resp
 
 def get_data_tda(ticker="SPY", periodType="day", period=10, frequencyType="minute", frequency=30, extended_hours=False):
-    # periodType = day, month, year, ytd
-    # period = day: 1, 2, 3, 4, 5, 10*, month: 1*, 2, 3, 6, year: 1*, 2, 3, 5, 10, 15, 20, ytd: 1*
-    # frequencyType = day: minute*, month: daily, weekly*, year: daily, weekly, monthly*, ytd: daily, weekly*
-    # frequency = "minute: 1*, 5, 10, 15, 30, daily: 1*, weekly: 1*, monthly: 1*"
+    periodTypes = ["day", "month", "year", "ytd"]
+    period_day = [1, 2, 3, 4, 5, 10]
+    period_month = [1, 2, 3, 6]
+    period_year = [1, 2, 3, 5, 10, 15, 20]
+    period_ytd = [1]
+    frequencyType_day = ["minute"]
+    frequencyType_month = ["daily", "weekly"]
+    frequencyType_year = ["daily", "weekly", "monthly"]
+    frequencyType_ytd = ["daily", "weekly"]
+    frequency_minute = [1, 5, 10, 15, 30]
+    frequency_daily = [1]
+    frequency_weekly = [1]
+    frequency_monthly = [1]
+    factor = 1
+    if frequencyType in ["daily", "weekly", "monthly"] and frequency != 1:
+        factor = frequency
+        frequency = 1
+    if frequencyType == "hour":
+        frequencyType = "minute"
+        frequency = int(frequency * 60)
+    if frequencyType == "minute" and frequency not in frequency_minute:
+        freq_min_rev = list(reversed(frequency_minute))
+        i = 0
+        while i < len(freq_min_rev):
+            if frequency % freq_min_rev[i] == 0:
+                factor = int(frequency / freq_min_rev[i])
+                frequency = freq_min_rev[i]
+                break
+            i += 1
     # ext = False
     useEpoch = False
     now = dt.datetime.now()
@@ -87,9 +112,86 @@ def get_data_tda(ticker="SPY", periodType="day", period=10, frequencyType="minut
     tda_headers = tda_authenticate()
     req = requests.get(data_url, headers = tda_headers)
     resp = json.loads(req.content)
+    if 'candles' not in resp:
+        print(resp)
     bars = resp['candles']
     if bars[-1]['close'] == 0:
         bars = bars[:-1]
+    if factor != 1:
+        if frequencyType == "minute" and frequency == 30:
+            if factor == 2:
+                bar_hour_starts_utc = ["13:30", "14:30", "15:30", "16:30", "17:30", "18:30", "19:30"]
+            elif factor == 4:
+                bar_hour_starts_utc = ["13:30", "15:30", "17:30", "19:30"]
+            elif factor == 6:
+                bar_hour_starts_utc = ["13:30", "16:30", "19:30"]
+            elif factor == 8:
+                bar_hour_starts_utc = ["13:30", "17:30"]
+            elif factor == 10:
+                bar_hour_starts_utc = ["13:30", "18:30"]
+            elif factor == 12:
+                bar_hour_starts_utc = ["13:30", "19:30"]
+            bars_hour = []
+            bars_Xmin = []
+            highs_Xmin = []
+            lows_Xmin = []
+            for bar in bars:
+                timestampX = pd.to_datetime(int(bar['datetime']) * 1000000)
+                hourX = timestampX.strftime("%H:%M")
+                if hourX in bar_hour_starts_utc and len(bars_Xmin) > 0:
+                    highs_Xmin = []
+                    lows_Xmin = []
+                    for barX in bars_Xmin:
+                        highs_Xmin.append(barX['high'])
+                        lows_Xmin.append(barX['low'])
+                    highX = max(highs_Xmin)
+                    lowX = min(lows_Xmin)
+                    openX = bars_Xmin[0]['open']
+                    closeX = bars_Xmin[len(bars_Xmin)-1]['close']
+                    bar_hour = {
+                        "timestamp": timestampX,
+                        "time": bar['datetime'],
+                        "open": openX,
+                        "high": highX,
+                        "low": lowX,
+                        "close": closeX
+                    }
+                    bars_hour.append(bar_hour)
+                    bars_Xmin = []
+                bars_Xmin.append(bar)
+            bars = bars_hour
+        else:
+            bars_revised = []
+            bars_X = []
+            highs_X = []
+            lows_X = []
+            counter = 0
+            for bar in bars:
+                timestampX = pd.to_datetime(int(bar['datetime']) * 1000000)
+                if counter == factor and len(bars_X) > 0:
+                    highs_X = []
+                    lows_X = []
+                    for barX in bars_X:
+                        highs_X.append(barX['high'])
+                        lows_X.append(barX['low'])
+                    highX = max(highs_X)
+                    lowX = min(lows_X)
+                    openX = bars_X[0]['open']
+                    closeX = bars_X[len(bars_X)-1]['close']
+                    bar_revised = {
+                        "timestamp": timestampX,
+                        "time": bar['datetime'],
+                        "open": openX,
+                        "high": highX,
+                        "low": lowX,
+                        "close": closeX
+                    }
+                    bars_revised.append(bar_revised)
+                    bars_X = []
+                    counter = 0
+                bars_X.append(bar)
+                counter += 1
+            bars = bars_revised
     return bars
 
 def get_positions_tda():

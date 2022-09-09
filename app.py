@@ -12,17 +12,15 @@ from streamlit_option_menu import option_menu # pip install streamlit-option-men
 import ta # pip install ta
 from tda import *
 
-# Database connection
-
-deta = connect_db()
-config_db = deta.Base("config_db")
-users_db = deta.Base("users_db")
-tickers_db = deta.Base("tickers_db")
-
 # Set page config
 
 st.set_page_config(page_title="Trade Bot", page_icon=":chart_with_upwards_trend:", layout="wide")
 # emojis: https://www.webfx.com/tools/emoji-cheat-sheet/
+
+# Database connection
+
+deta = connect_db()
+users_db = deta.Base("users_db")
 
 # User login
 
@@ -42,52 +40,52 @@ if auth == None:
 if auth:
 
     # Remove whitespace from the top of the page and sidebar
-    st.markdown("""
-            <style>
-                .css-18e3th9 {
-                        padding-top: 0rem;
-                        padding-bottom: 10rem;
-                        padding-left: 5rem;
-                        padding-right: 5rem;
-                    }
-                .css-1d391kg {
-                        padding-top: 3rem;
-                        padding-right: 1rem;
-                        padding-bottom: 3rem;
-                        padding-left: 1rem;
-                    }
-                .css-hxt7ib {
-                        padding-top: 3rem;
-                        padding-left: 1rem;
-                        padding-right: 1rem;
-                    }
-                .css-r4g17z {
-                        height: 2rem;
-                    }
-            </style>
-            """, unsafe_allow_html=True)
+
+    whitespace_style = \
+        """
+        <style>
+            .css-18e3th9 {
+                    padding-top: 0rem;
+                    padding-bottom: 10rem;
+                    padding-left: 5rem;
+                    padding-right: 5rem;
+                }
+            .css-1d391kg {
+                    padding-top: 3rem;
+                    padding-right: 1rem;
+                    padding-bottom: 3rem;
+                    padding-left: 1rem;
+                }
+            .css-hxt7ib {
+                    padding-top: 3rem;
+                    padding-left: 1rem;
+                    padding-right: 1rem;
+                }
+            .css-r4g17z {
+                    height: 2rem;
+                }
+        </style>
+        """
+    st.markdown(whitespace_style, unsafe_allow_html=True)
 
     # Title of page
+
     st.title(":chart_with_upwards_trend: Trade Bot")
     st.markdown("##")
 
-    # Data from databse
+    # Database connection (again)
+
+    deta = connect_db()
+    config_db = deta.Base("config_db")
+    tickers_db = deta.Base("tickers_db")
+
+    # Get data from database
+
     tickers_info = tickers_db.fetch().items
     tickers = [item["key"].upper() for item in tickers_info]
-    # period_types = [item["period_type"] for item in tickers_info]
-    # periods = [item["period"] for item in tickers_info]
-    # frequencies = [item["frequency"] for item in tickers_info]
-    # frequency_types = [item["frequency_type"] for item in tickers_info]
-    # extended_hours = [item["extended_hours"] for item in tickers_info]
-    # ema_lengths = [item["ema_length"] for item in tickers_info]
-    # hma_lengths = [item["hma_length"] for item in tickers_info]
-    # contracts = [item["contracts"] for item in tickers_info]
-    # stoplosses = [item["stoploss"] for item in tickers_info]
-    # stoploss_pcts = [item["stoploss_pct"] for item in tickers_info]
-    # trailing_pcts = [item["trailing_pct"] for item in tickers_info]
-    # use_trailings = [item["use_trailing"] for item in tickers_info]
 
     # Option menu
+
     # page_icons = ["table"] * 3 + ["currency-dollar"] * len(tickers)
     page_options = ["Chart", "Positions", "Orders", "Deta"]
     # selected_menu = option_menu(
@@ -117,10 +115,9 @@ if auth:
     #             },
     #         },
     #     )
-    deta_name = config_db.get("DETA_NAME")['value']
-    bot_on = config_db.get("BOT_ON")['value']
-    deta_link = f"Click here to edit these settings: [Deta](https://web.deta.sh/home/{deta_name}/default/bases/tickers_db)"
-    deta_link2 = f"[Toggle](https://web.deta.sh/home/{deta_name}/default/bases/config_db)"
+
+    # Display market status
+
     hours = get_hours_tda()
     market_open = hours[0]
     closing_time = hours[1]
@@ -130,6 +127,9 @@ if auth:
         market_str = "OPEN"
     else:
         market_str = "CLOSED"
+
+    # Display cloud status
+
     heroku_token = config_db.get("HEROKU_API")['value']
     heroku_url = 'https://api.heroku.com'
     apps_url = '{}/apps'.format(heroku_url)
@@ -139,28 +139,103 @@ if auth:
         "Content-Type": "application/json", 
         "Authorization": "Bearer {}".format(heroku_token)
     }
-    dyno_list_url_all = '{}/{}/dynos'.format(apps_url, app_name)
-    get_dyno_list_all = requests.get(dyno_list_url_all, headers = headers)
-    dyno_content = get_dyno_list_all.content
-    if get_dyno_list_all.status_code in [200, 201]:
-        dyno_content = json.loads(dyno_content)
-    detached_dyno = [dyno for dyno in dyno_content if dyno['command'] == 'python script.py']
-    if len(detached_dyno) > 0:
-        cloud_str = "ON"
-    else:
-        cloud_str = "OFF"
-    if bool(bot_on):
-        bot_str = "ON"
-    else:
-        bot_str = "OFF"
 
+    def get_cloud(id_=False):
+        dyno_list_url_all = '{}/{}/dynos'.format(apps_url, app_name)
+        get_dyno_list_all = requests.get(dyno_list_url_all, headers = headers)
+        dyno_content = get_dyno_list_all.content
+        if get_dyno_list_all.status_code in [200, 201]:
+            dyno_content = json.loads(dyno_content)
+        detached_dyno = [dyno for dyno in dyno_content if dyno['command'] == 'python script.py']
+        if id_:
+            return detached_dyno
+        if len(detached_dyno) > 0:
+            cloud_bool = True
+        else:
+            cloud_bool = False
+        return cloud_bool
+
+    def start_cloud():
+        cloud = get_cloud()
+        if not cloud:
+            run_script = {"command": "python script.py",
+                        "type": "run:detached"}
+            dyno_create_url_all = '{}/{}/dynos'.format(apps_url, app_name)
+            post_dyno_all = requests.post(dyno_create_url_all, data = json.dumps(run_script), headers = headers)
+            post_dyno_all_content = json.loads(post_dyno_all.content)
+            return post_dyno_all_content
+        else:
+            return cloud
+
+    def stop_cloud():
+        dyno = get_cloud(id_=True)
+        try:
+            detached_dyno_id = dyno[0]['id']
+        except:
+            return false
+        dyno_stop_url_all = '{}/{}/dynos/{}/actions/stop'.format(apps_url, app_name, detached_dyno_id)
+        post_dyno_stop_all = requests.post(dyno_stop_url_all, headers = headers)
+        dyno_stop_all_content = json.loads(post_dyno_stop_all.content)
+        return dyno_stop_all_content
+
+    cloud_options = ["On", "Off"]
+    if "cloud_str" not in st.session_state:
+        cloud_bool = get_cloud()
+        if cloud_bool:
+            cloud_str = "On"
+        else:
+            cloud_str = "Off"
+        st.session_state["cloud_str"] = cloud_str
+
+    def toggle_cloud():
+        if cloud_radio == "Off":
+            start_cloud()
+        else:
+            stop_cloud()
+
+    # Display bot status
+
+    bot_options = ["On", "Off"]
+    if "bot_str" not in st.session_state:
+        bot_bool = bool(config_db.get("BOT_ON")['value'])
+        if bot_bool:
+            bot_str = "On"
+        else:
+            bot_str = "Off"
+        st.session_state["bot_str"] = bot_str
+    
+    def toggle_bot():
+        entry = {}
+        entry["key"] = "BOT_ON"
+        entry["value"] = ""
+        if bot_radio == "Off":
+            entry["value"] = True
+        else:
+            entry["value"] = False
+        print(entry)
+        config_db.put(entry)
+        
     # ---- SIDEBAR ----
+
     authenticator.logout("Logout", "sidebar")
-    st.sidebar.title(f"Welcome {name}")
-    st.sidebar.write(f"Market is {market_str}")
-    st.sidebar.write(f"Cloud is {cloud_str}")
-    st.sidebar.write(f"Bot is {bot_str}")
-    st.sidebar.write(deta_link2)
+    with st.sidebar:
+        st.title(f"Welcome {name}")
+        st.write(f"Market is {market_str}")
+        cloud_radio = st.radio(
+            label = "Cloud",
+            options = cloud_options,
+            index = cloud_options.index(st.session_state["cloud_str"]),
+            on_change = toggle_cloud,
+            horizontal = True
+        )
+        bot_radio = st.radio(
+            label = "Bot",
+            options = bot_options,
+            index = bot_options.index(st.session_state["bot_str"]),
+            on_change = toggle_bot,
+            horizontal = True
+        )
+
     #if selected_menu in tickers:
     selected_side = st.sidebar.selectbox("Select Page:", options=page_options)
     if selected_side == "Chart":
@@ -207,19 +282,57 @@ if auth:
         orders = orders1
         st.table(data=orders)
     
-    # Deta Page
+    # Deta page
 
+    deta_name = config_db.get("DETA_NAME")['value']
+    deta_link = f"Click here to view these settings in [Deta](https://web.deta.sh/home/{deta_name}/default/bases/tickers_db)"
     if selected_side == "Deta":
         st.title("Deta")
-        st.table(data=tickers_info)
+        st.dataframe(data=tickers_info)
+        with st.form(key="tickers"):
+            edit_symbol = st.text_input(
+                label = "Symbol",
+                placeholder = "MSFT"
+            )
+            add_delete = st.radio(
+                label = "Action",
+                options = ["Add", "Delete"]
+            )
+            symbol_submit = st.form_submit_button()
+            if symbol_submit:
+                if len(edit_symbol) < 1:
+                    st.warning("No symbol typed, replace placeholder", icon="⚠️")
+                else:
+                    edit_symbol = edit_symbol.upper()
+                    items = tickers_db.fetch().items
+                    symbol_keys = [item['key'] for item in items]
+                    if add_delete == "Add":
+                        if edit_symbol in symbol_keys:
+                            st.warning("Symbol already in Deta base, cannot be added again", icon="⚠️")
+                        else:
+                            default_values = items[0]
+                            default_values["key"] = edit_symbol
+                            tickers_db.put(default_values)
+                            st.success('Deta updated successfully!', icon="✅")
+                    elif add_delete == "Delete":
+                        if edit_symbol not in symbol_keys:
+                            st.warning("Symbol not in Deta base, cannot be deleted", icon="⚠️")
+                        else:
+                            if len(items) == 1:
+                                st.error("Cannot delete last symbol in Deta base", icon="🚨")
+                            else:
+                                tickers_db.delete(edit_symbol)
+                                st.success('Deta updated successfully!', icon="✅")
         st.write(deta_link)
 
-    # Display ticker info
+    # Chart page
 
     if selected_side == "Chart":
         for ticker in tickers:
             # if selected_side == ticker:
             if selected_ticker == ticker:
+
+                # Plotly chart
                 idx = tickers.index(ticker)
                 quote = get_quote_tda(ticker)
                 last = str(np.round(float(quote[ticker]['lastPrice']), 2))
@@ -329,6 +442,8 @@ if auth:
                     ticksuffix=" "
                 )
                 st.plotly_chart(fig, use_container_width = True)
+
+                # TradingView Chart
                 tv_chart = """
                     <div class="tradingview-widget-container">
                         <div id="tradingview_567ac"></div>
@@ -371,15 +486,204 @@ if auth:
                 tv_chart = tv_chart.replace("D", interval)
                 tv_chart = tv_chart.replace("SPY", ticker)
                 components.html(tv_chart, height = 650)
-                st.table(data={"Value": tickers_db.get(ticker)})
-                st.write(deta_link)
+
+                # Form
+                values = tickers_db.get(ticker)
+                confirm_unit_options = ["second", "minute", "hour"]
+                frequency_type_options = ["minute", "daily", "weekly", "monthly"]
+                period_type_options = ["day", "month", "year", "ytd"]
+                stoploss_options = ["Dollars", "Percent", "Trailing %", "None"]
+                take_profit_options = ["Dollars", "Percent", "None"]
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    st.title(f"Deta settings for {ticker}")
+                    with st.form(key="deta_settings"):
+                        confirm_time = st.number_input(
+                            label = "Confirm time",
+                            help = "The amount of time to sit in a HA candle before exiting",
+                            value = values['confirm_time'],
+                            step = 1,
+                            min_value = 0
+                        )
+                        confirm_unit = st.selectbox(
+                            label = "Confirm unit",
+                            help = "The unit of measure associated with confirm time",
+                            options = confirm_unit_options,
+                            index = confirm_unit_options.index(values['confirm_unit'].lower()),
+                        )
+                        contracts = st.number_input(
+                            label = "Contracts",
+                            help = "The number of shares/option contracts to purchase on entry",
+                            value = values['contracts'],
+                            step = 1,
+                            min_value = 1
+                        )
+                        delta_min = st.slider(
+                            label = "Delta min",
+                            help = "Determines which strike to buy (0=OTM, 50=ATM, 99=ITM)",
+                            value = values['delta_min'],
+                            step = 1,
+                            min_value = 0,
+                            max_value = 99
+                        )
+                        dte_min = st.number_input(
+                            label = "DTE min",
+                            help = "Determines which expiration date to buy (0=today)",
+                            value = values['dte_min'],
+                            step = 1,
+                            min_value = 0,
+                        )
+                        ema_length = st.number_input(
+                            label = "EMA length",
+                            help = "The length of the exponential moving average",
+                            value = values['ema_length'],
+                            step = 1,
+                            min_value = 1
+                        )
+                        extended_hours = st.checkbox(
+                            label = "Extended hours",
+                            help = "Determines whether data includes pre/post",
+                            value = values['extended_hours'],
+                        )
+                        frequency = st.number_input(
+                            label = "Frequency",
+                            help = "The timeframe length of your market data",
+                            value = values['frequency'],
+                            step = 1,
+                            min_value = 1
+                        )
+                        frequency_type = st.selectbox(
+                            label = "Frequency type",
+                            help = "The unit of measure associated with frequency",
+                            options = frequency_type_options,
+                            index = frequency_type_options.index(values['frequency_type'].lower())
+                        )
+                        hma_length = st.number_input(
+                            label = "HMA length",
+                            help = "The length of the Hull Suite moving average",
+                            value = values['hma_length'],
+                            step = 1,
+                            min_value = 1
+                        )
+                        #max
+                        #min
+                        period = st.number_input(
+                            label = "Period",
+                            help = "The length back of your market data",
+                            value = values['period'],
+                            step = 1,
+                            min_value = 1
+                        )
+                        period_type = st.selectbox(
+                            label = "Period type",
+                            help = "The unit of measure associated with period",
+                            options = period_type_options,
+                            index = period_type_options.index(values['period_type'].lower())
+                        )
+                        stoploss = st.number_input(
+                            label = "Stoploss ($)",
+                            help = "The max amount of loss before closing",
+                            value = values['stoploss'],
+                            step = 1,
+                            min_value = 0
+                        )
+                        stoploss_pct = st.slider(
+                            label = "Stoploss (%)",
+                            help = "The max percentage of loss before closing",
+                            value = values['stoploss_pct'],
+                            step = 1,
+                            min_value = 0,
+                            max_value = 100
+                        )
+                        stoploss_type = st.selectbox(
+                            label = "Stoploss type",
+                            help = "The method of calculating stoploss",
+                            options = stoploss_options,
+                            index = stoploss_options.index(values['stoploss_type'])
+                        )
+                        take_profit = st.number_input(
+                            label = "Take profit ($)",
+                            help = "The max amount of gain before closing",
+                            value = values['take_profit'],
+                            step = 1,
+                            min_value = 0
+                        )
+                        take_profit_pct = st.slider(
+                            label = "Take profit (%)",
+                            help = "The max percentage of gain before closing",
+                            value = values['take_profit_pct'],
+                            step = 1,
+                            min_value = 0,
+                            max_value = 100
+                        )
+                        take_profit_type = st.selectbox(
+                            label = "Take profit type",
+                            help = "The method of calculating take profit",
+                            options = take_profit_options,
+                            index = take_profit_options.index(values['take_profit_type'])
+                        )
+                        # time_in_candle
+                        trail_pct = st.slider(
+                            label = "Trail (%): The max trailing percentage of loss before closing",
+                            value = values['trail_pct'],
+                            step = 1,
+                            min_value = 0,
+                            max_value = 100
+                        )
+                        trigger_trail = st.number_input(
+                            label = "Trigger trail ($)",
+                            help = "The gain amount at which a trailing stop triggers",
+                            value = values['trigger_trail'],
+                            step = 1,
+                            min_value = 0
+                        )
+                        trigger_trail_pct = st.slider(
+                            label = "Trigger Trail (%)",
+                            help = "The trailing stop set after reaching trigger",
+                            value = values['trigger_trail_pct'],
+                            step = 1,
+                            min_value = 0,
+                            max_value = 100
+                        )
+                        submit_settings = st.form_submit_button(label="Update Deta")
+                        if submit_settings:
+                            entry = {
+                                "confirm_time": confirm_time,
+                                "confirm_unit": confirm_unit,
+                                "contracts": contracts,
+                                "dte_min": dte_min,
+                                "delta_min": delta_min,
+                                "ema_length": ema_length,
+                                "extended_hours": extended_hours,
+                                "frequency_type": frequency_type,
+                                "frequency": frequency,
+                                "hma_length": hma_length,
+                                "key": ticker,
+                                "max": values['max'],
+                                "min": values['min'],
+                                "period": period,
+                                "period_type": period_type, 
+                                "stoploss": stoploss,
+                                "stoploss_pct": stoploss_pct,
+                                "stoploss_type": stoploss_type,
+                                "take_profit": take_profit,
+                                "take_profit_pct": take_profit_pct,
+                                "take_profit_type": take_profit_type,
+                                "time_in_candle": values['time_in_candle'],
+                                "trail_pct": trail_pct,
+                                "trigger_trail": trigger_trail,
+                                "trigger_trail_pct": trigger_trail_pct,
+                            }
+                            tickers_db.put(entry)
+                            st.success('Deta updated successfully!', icon="✅")
 
     # ---- HIDE STREAMLIT STYLE ----
-    hide_st_style = """
-                <style>
-                #MainMenu {visibility: hidden;}
-                footer {visibility: hidden;}
-                header {visibility: hidden;}
-                </style>
-                """
+    hide_st_style = \
+        """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+        """
     st.markdown(hide_st_style, unsafe_allow_html=True)

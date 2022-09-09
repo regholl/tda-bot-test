@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import ta
 from tda import *
+#import threading
 import time
 
 # Global variables
@@ -61,15 +62,17 @@ def run():
     stoplosses = [float(item["stoploss"]) if item["stoploss"] != None else 1000000 for item in tickers_info]
     stoploss_pcts = [float(item["stoploss_pct"]) if item["stoploss_pct"] != None else 1000000 for item in tickers_info]
     trail_pcts = [float(item["trail_pct"]) if item["trail_pct"] != None else 1000000 for item in tickers_info]
-    use_pct_stops = [item["use_pct_stop"] for item in tickers_info]
-    use_trail_stops = [item["use_trail_stop"] for item in tickers_info]
+    stoploss_types = [item["stoploss_type"] for item in tickers_info]
     maxes = [float(item["max"]) for item in tickers_info]
     mins = [float(item["min"]) for item in tickers_info]
     trigger_trails = [float(item["trigger_trail"]) for item in tickers_info]
     trigger_trail_pcts = [float(item["trigger_trail_pct"]) for item in tickers_info]
     take_profits = [float(item["take_profit"]) for item in tickers_info]
     take_profit_pcts = [float(item["take_profit_pct"]) for item in tickers_info]
-    use_pct_profits = [item["use_pct_profit"] for item in tickers_info]
+    take_profit_types = [item["take_profit_type"] for item in tickers_info]
+    confirm_times = [int(item["confirm_time"]) for item in tickers_info]
+    confirm_units = [item["confirm_unit"] for item in tickers_info]
+    times_in_candles = [item["time_in_candle"] for item in tickers_info]
 
     # Create master ticker_dict
 
@@ -87,15 +90,17 @@ def run():
         ticker_dict[tickers[i]]["stoploss"] = stoplosses[i]
         ticker_dict[tickers[i]]["stoploss_pct"] = stoploss_pcts[i]
         ticker_dict[tickers[i]]["trail_pct"] = trail_pcts[i]
-        ticker_dict[tickers[i]]["use_pct_stop"] = use_pct_stops[i]
-        ticker_dict[tickers[i]]["use_trail_stop"] = use_trail_stops[i]
+        ticker_dict[tickers[i]]["stoploss_type"] = stoploss_types[i]
         ticker_dict[tickers[i]]["max"] = maxes[i]
         ticker_dict[tickers[i]]["min"] = mins[i]
         ticker_dict[tickers[i]]["trigger_trail"] = trigger_trails[i]
         ticker_dict[tickers[i]]["trigger_trail_pct"] = trigger_trail_pcts[i]
         ticker_dict[tickers[i]]["take_profit"] = take_profits[i]
         ticker_dict[tickers[i]]["take_profit_pct"] = take_profit_pcts[i]
-        ticker_dict[tickers[i]]["use_pct_profit"] = use_pct_profits[i]
+        ticker_dict[tickers[i]]["take_profit_type"] = take_profit_types[i]
+        ticker_dict[tickers[i]]["confirm_time"] = confirm_times[i]
+        ticker_dict[tickers[i]]["confirm_unit"] = confirm_units[i]
+        ticker_dict[tickers[i]]["times_in_candles"] = times_in_candles[i]
 
         ticker_dict[tickers[i]]["option_symbol"] = tickers[i]
         ticker_dict[tickers[i]]["average_price"] = 0
@@ -164,12 +169,12 @@ def run():
 
         # Bullish or bearish candle
 
-        if market_open:
-            last_close = tda_closes[len(tda_closes)-2]
-            last_open = tda_opens[len(tda_opens)-2]
-        else:
-            last_close = tda_closes[len(tda_closes)-1]
-            last_open = tda_opens[len(tda_opens)-1]
+        # if market_open:
+        #     last_close = tda_closes[len(tda_closes)-2]
+        #     last_open = tda_opens[len(tda_opens)-2]
+        # else:
+        last_close = tda_closes[len(tda_closes)-1]
+        last_open = tda_opens[len(tda_opens)-1]
         if last_close > last_open:
             bullish_candle = True
         else:
@@ -204,12 +209,12 @@ def run():
 
         # Bullish or bearish HMA
 
-        if market_open:
-            last_hma = hmas_all[len(hmas_all)-2]
-            last_hma1 = hmas_all[len(hmas_all)-3]
-        else:
-            last_hma = hmas_all[len(hmas_all)-1]
-            last_hma1 = hmas_all[len(hmas_all)-1]
+        # if market_open:
+        #     last_hma = hmas_all[len(hmas_all)-2]
+        #     last_hma1 = hmas_all[len(hmas_all)-3]
+        # else:
+        last_hma = hmas_all[len(hmas_all)-1]
+        last_hma1 = hmas_all[len(hmas_all)-2]
         if last_hma > last_hma1:
             bullish_hma = True
         else:
@@ -292,11 +297,11 @@ def run():
             tda_gainloss = 0
             tda_gainloss_pct = 0
         if tda_gainloss > trigger_trails[i] or tda_gainloss_pct > trigger_trail_pcts[i]:
-            if ticker_dict[tickers[i]]["use_trail_stop"] != True:
+            if ticker_dict[tickers[i]]["stoploss_type"] != "Trailing %":
                 entry = tickers_db.get(tickers[i])
-                entry["use_trail_stop"] = True
-                use_trail_stops[i] = True
-                ticker_dict[tickers[i]]["use_trail_stop"] = True
+                entry["stoploss_type"] = "Trailing %"
+                stoploss_types[i] = "Trailing %"
+                ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 tickers_db.put(entry)
                 print(f"Trailing stop loss triggerd due to gainloss {tda_gainloss} > trigger_trail {trigger_trails[i]} \
                         or gainloss % {tda_gainloss_pct} > {trigger_trail_pcts[i]}")
@@ -372,18 +377,22 @@ def run():
             except ZeroDivisionError:
                 drawdown_pct_high = 0
                 drawdown_pct_low = 0
-            if ticker_dict[tickers[i]]["use_trail_stop"]:
+            if ticker_dict[tickers[i]]["stoploss_type"] == "Trailing %":
                 condition3 = abs(drawdown_pct_high) > trail_pct
-            elif ticker_dict[tickers[i]]["use_pct_stop"]:
+            elif ticker_dict[tickers[i]]["stoploss_type"] == "Percent":
                 condition3 = abs(gainloss_pct) > stoploss_pct and gainloss_pct < 0
-            else:
+            elif ticker_dict[tickers[i]]["stoploss_type"] == "Dollars":
                 condition3 = abs(gainloss) > stoploss and gainloss < 0
+            elif ticker_dict[tickers[i]]["stoploss_type"] == "None":
+                condition3 = False
             take_profit = ticker_dict[tickers[i]]["take_profit"]
             take_profit_pct = ticker_dict[tickers[i]]["take_profit_pct"]
-            if ticker_dict[tickers[i]]["use_pct_profit"]:
+            if ticker_dict[tickers[i]]["take_profit_type"] == "Percent":
                 condition4 = gainloss_pct > take_profit_pct
-            else:
+            elif ticker_dict[tickers[i]]["take_profit_type"] == "Dollars":
                 condition4 = gainloss > take_profit
+            elif ticker_dict[tickers[i]]["take_profit_type"] == "None":
+                condition4 = False
             exit_symbol = ticker_dict[tickers[i]]["option_symbol"]
             exit_quantity = ticker_dict[tickers[i]]["quantity"]
             stoploss_exit = condition1 and condition2 and condition3 and not condition4
@@ -391,23 +400,55 @@ def run():
             condition5 = "C" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
             condition6 = "P" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
             condition7 = ticker_dict[tickers[i]]["bullish_candle"]
-            call_exit = condition1 and condition2 and condition5 and not condition6 and not condition7
-            put_exit = condition1 and condition2 and not condition5 and condition6 and condition7
-            if stoploss_exit or profit_exit or call_exit or put_exit:
-                # time.sleep(5)
+            confirm_time = ticker_dict[tickers[i]]["confirm_time"]
+            confirm_unit = ticker_dict[tickers[i]]["confirm_unit"]
+            if "sec" in confirm_unit.lower():
+                confirm_time = confirm_time
+            elif "min" in confirm_unit.lower():
+                confirm_time = np.round(confirm_time * 60, 1)
+            elif "hour" in confirm_unit.lower():
+                confirm_time = np.round(confirm_time * 60 * 60, 1)
+            else:
+                confirm_time = confirm_time
+            curr_time = dt.datetime.now(tz=utc)
+            old_time = pd.Timestamp(tickers_db.get(tickers[i])['time_in_candle'], tz=utc)
+            if confirm_time in [0, None]:
+                condition8 = True
+            elif old_time == 0:
+                condition8 = False
+                print(f"Starting timer on {tickers[i]}")
+            else:
+                condition8 = curr_time > old_time + dt.timedelta(seconds=confirm_time)
+            if condition8:
+                times_in_candles[i] = 0
+                ticker_dict[tickers[i]]["time_in_candle"] = 0
+                entry = tickers_db.get(tickers[i])
+                entry["time_in_candle"] = 0
+                tickers_db.put(entry)
+            else:
+                times_in_candles[i] = curr_time
+                ticker_dict[tickers[i]]["time_in_candle"] = curr_time
+                entry = tickers_db.get(tickers[i])
+                entry["time_in_candle"] = curr_time
+                tickers_db.put(entry)
+            call_exit = condition1 and condition2 and condition5 and not condition6 and not condition7 and condition8
+            put_exit = condition1 and condition2 and not condition5 and condition6 and condition7 and condition8
+            any_exit = stoploss_exit or profit_exit or call_exit or put_exit
+            if any_exit:
+                tickers_db.put(entry)
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol)
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
-                    if ticker_dict[tickers[i]]["use_trail_stop"]:
+                    if ticker_dict[tickers[i]]["stoploss_type"] == "Trailing %":
                         exit_log = exit_log + f" drawdown % {drawdown_pct_high} > trail % {trail_pct}"
-                    elif ticker_dict[tickers[i]]["use_pct_stop"]:
+                    elif ticker_dict[tickers[i]]["stoploss_type"] == "Percent":
                         exit_log = exit_log + f" gainloss % {gainloss_pct} > stoploss % {stoploss_pct}"
-                    else:
+                    elif ticker_dict[tickers[i]]["stoploss_type"] == "Dollars":
                         exit_log = exit_log + f" gainloss {gainloss} > stoploss {stoploss}"
                 elif profit_exit:
-                    if ticker_dict[tickers[i]]["use_pct_profit"]:
+                    if ticker_dict[tickers[i]]["take_profit_type"] == "Percent":
                         exit_log = exit_log + f" gainloss % {gainloss_pct} > take_profit % {take_profit_pct}"
-                    else:
+                    elif ticker_dict[tickers[i]]["take_profit_type"] == "Dollars":
                         exit_log = exit_log + f" gainloss {gainloss} > take_profit {take_profit}"
                 elif call_exit:
                     tda_symbols_held.remove(tickers[i])
@@ -461,8 +502,7 @@ def run():
             ["Stoplosses",f" = {stoplosses}"],
             ["Stoploss pcts",f" = {stoploss_pcts}"],
             ["Trailing pcts",f" = {trail_pcts}"],
-            ["Use pct?",f" = {use_pct_stops}"],
-            ["Use trail?",f" = {use_trail_stops}"],
+            ["Stoploss types",f" = {stoploss_types}"],
             ["Gainloss",f" = {tda_gainlosses}"],
             ["Gainloss Pct",f" = {tda_gainloss_pcts}"],
             ["Maxes",f" = {maxes}"],

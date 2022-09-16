@@ -512,7 +512,7 @@ if auth:
                 take_profit_options = ["Fixed $", "Fixed %", "None"]
                 col1, col2 = st.columns([1, 1])
                 with col1:
-                    st.title("Ticker settings for {ticker}")
+                    st.title(f"Ticker settings for {ticker}")
                     with st.form(key="ticker_settings"):
                         with st.expander("Market data"):
                             use_close = st.checkbox(

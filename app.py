@@ -78,6 +78,7 @@ if auth:
     deta = connect_db()
     config_db = deta.Base("config_db")
     tickers_db = deta.Base("tickers_db")
+    checkpoints_db = deta.Base("checkpoints_db")
 
     # Get data from database
 
@@ -172,7 +173,7 @@ if auth:
         try:
             detached_dyno_id = dyno[0]['id']
         except:
-            return false
+            return False
         dyno_stop_url_all = '{}/{}/dynos/{}/actions/stop'.format(apps_url, app_name, detached_dyno_id)
         post_dyno_stop_all = requests.post(dyno_stop_url_all, headers = headers)
         dyno_stop_all_content = json.loads(post_dyno_stop_all.content)
@@ -305,6 +306,7 @@ if auth:
                 else:
                     edit_symbol = edit_symbol.upper()
                     items = tickers_db.fetch().items
+                    items1 = checkpoints_db.fetch().items
                     symbol_keys = [item['key'] for item in items]
                     if add_delete == "Add":
                         if edit_symbol in symbol_keys:
@@ -313,6 +315,9 @@ if auth:
                             default_values = items[0]
                             default_values["key"] = edit_symbol
                             tickers_db.put(default_values)
+                            default_values1 = items1[0]
+                            default_values1["key"] = edit_symbol
+                            checkpoints_db.put(default_values1)
                             st.success('Deta updated successfully!', icon="✅")
                     elif add_delete == "Delete":
                         if edit_symbol not in symbol_keys:
@@ -322,6 +327,7 @@ if auth:
                                 st.error("Cannot delete last symbol in Deta base", icon="🚨")
                             else:
                                 tickers_db.delete(edit_symbol)
+                                checkpoints_db.delete(edit_symbol)
                                 st.success('Deta updated successfully!', icon="✅")
         st.write(deta_link)
 
@@ -459,7 +465,7 @@ if auth:
                                 "height": 650,
                                 "symbol": "SPY",
                                 "interval": "D",
-                                "timezone": "America/New_York",
+                                "timezone": "America/Los_Angeles",
                                 "theme": "light",
                                 "style": "8",
                                 "locale": "en",
@@ -468,13 +474,15 @@ if auth:
                                 "withdateranges": true,
                                 "hide_side_toolbar": false,
                                 "allow_symbol_change": true,
-                                "details": false,
-                                "container_id": "tradingview_52a26"
+                                "studies": [
+                                    "hullMA@tv-basicstudies",
+                                    "MAExp@tv-basicstudies"
+                                ],
+                                "container_id": "tradingview_ceea6"
                             });
                         </script>
                     </div>
                 """
-                # Style:8 is for Heikin Ashi
                 if frequencyType == "minute":
                     interval = str(frequency)
                 elif frequencyType == "daily":
@@ -485,169 +493,244 @@ if auth:
                     interval = "M"
                 tv_chart = tv_chart.replace("D", interval)
                 tv_chart = tv_chart.replace("SPY", ticker)
+                # Style:8 is for Heikin Ashi
+                if tickers_info[idx]['candle_type'] != "Heikin Ashi":
+                    tv_chart = tv_chart.replace("8","1")
                 components.html(tv_chart, height = 650)
 
                 # Form
                 values = tickers_db.get(ticker)
+                values1 = checkpoints_db.get(ticker)
+                indicator_options = ["HMA", "EMA"]
+                candle_type_options = ["Heikin Ashi", "Normal"]
                 confirm_unit_options = ["second", "minute", "hour"]
                 frequency_type_options = ["minute", "daily", "weekly", "monthly"]
                 period_type_options = ["day", "month", "year", "ytd"]
-                stoploss_options = ["Dollars", "Percent", "Trailing %", "None"]
-                take_profit_options = ["Dollars", "Percent", "None"]
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    st.title(f"Deta settings for {ticker}")
-                    with st.form(key="deta_settings"):
-                        confirm_time = st.number_input(
-                            label = "Confirm time",
-                            help = "The amount of time to sit in a HA candle before exiting",
-                            value = values['confirm_time'],
-                            step = 1,
-                            min_value = 0
-                        )
-                        confirm_unit = st.selectbox(
-                            label = "Confirm unit",
-                            help = "The unit of measure associated with confirm time",
-                            options = confirm_unit_options,
-                            index = confirm_unit_options.index(values['confirm_unit'].lower()),
-                        )
-                        contracts = st.number_input(
-                            label = "Contracts",
-                            help = "The number of shares/option contracts to purchase on entry",
-                            value = values['contracts'],
-                            step = 1,
-                            min_value = 1
-                        )
-                        delta_min = st.slider(
-                            label = "Delta min",
-                            help = "Determines which strike to buy (0=OTM, 50=ATM, 99=ITM)",
-                            value = values['delta_min'],
-                            step = 1,
-                            min_value = 0,
-                            max_value = 99
-                        )
-                        dte_min = st.number_input(
-                            label = "DTE min",
-                            help = "Determines which expiration date to buy (0=today)",
-                            value = values['dte_min'],
-                            step = 1,
-                            min_value = 0,
-                        )
-                        ema_length = st.number_input(
-                            label = "EMA length",
-                            help = "The length of the exponential moving average",
-                            value = values['ema_length'],
-                            step = 1,
-                            min_value = 1
-                        )
-                        extended_hours = st.checkbox(
-                            label = "Extended hours",
-                            help = "Determines whether data includes pre/post",
-                            value = values['extended_hours'],
-                        )
-                        frequency = st.number_input(
-                            label = "Frequency",
-                            help = "The timeframe length of your market data",
-                            value = values['frequency'],
-                            step = 1,
-                            min_value = 1
-                        )
-                        frequency_type = st.selectbox(
-                            label = "Frequency type",
-                            help = "The unit of measure associated with frequency",
-                            options = frequency_type_options,
-                            index = frequency_type_options.index(values['frequency_type'].lower())
-                        )
-                        hma_length = st.number_input(
-                            label = "HMA length",
-                            help = "The length of the Hull Suite moving average",
-                            value = values['hma_length'],
-                            step = 1,
-                            min_value = 1
-                        )
-                        #max
-                        #min
-                        period = st.number_input(
-                            label = "Period",
-                            help = "The length back of your market data",
-                            value = values['period'],
-                            step = 1,
-                            min_value = 1
-                        )
-                        period_type = st.selectbox(
-                            label = "Period type",
-                            help = "The unit of measure associated with period",
-                            options = period_type_options,
-                            index = period_type_options.index(values['period_type'].lower())
-                        )
-                        stoploss = st.number_input(
-                            label = "Stoploss ($)",
-                            help = "The max amount of loss before closing",
-                            value = values['stoploss'],
-                            step = 1,
-                            min_value = 0
-                        )
-                        stoploss_pct = st.slider(
-                            label = "Stoploss (%)",
-                            help = "The max percentage of loss before closing",
-                            value = values['stoploss_pct'],
-                            step = 1,
-                            min_value = 0,
-                            max_value = 100
-                        )
-                        stoploss_type = st.selectbox(
-                            label = "Stoploss type",
-                            help = "The method of calculating stoploss",
-                            options = stoploss_options,
-                            index = stoploss_options.index(values['stoploss_type'])
-                        )
-                        take_profit = st.number_input(
-                            label = "Take profit ($)",
-                            help = "The max amount of gain before closing",
-                            value = values['take_profit'],
-                            step = 1,
-                            min_value = 0
-                        )
-                        take_profit_pct = st.slider(
-                            label = "Take profit (%)",
-                            help = "The max percentage of gain before closing",
-                            value = values['take_profit_pct'],
-                            step = 1,
-                            min_value = 0,
-                            max_value = 100
-                        )
-                        take_profit_type = st.selectbox(
-                            label = "Take profit type",
-                            help = "The method of calculating take profit",
-                            options = take_profit_options,
-                            index = take_profit_options.index(values['take_profit_type'])
-                        )
+                wick_options = ["Any wick okay", "Can't have wick", "Can have wick, but must be smaller"]
+                order_type_options = ["MARKET", "LIMIT"]
+                stoploss_options = ["Fixed $", "Fixed %", "Trailing %", "None"]
+                take_profit_options = ["Fixed $", "Fixed %", "None"]
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    st.title("Ticker settings for {ticker}")
+                    with st.form(key="ticker_settings"):
+                        with st.expander("Market data"):
+                            use_close = st.checkbox(
+                                label = "Use Close",
+                                help = "Determines whether entries/exits will happen in the middle of a candle or only after candle close",
+                                value = values['use_close'],
+                            )
+                            extended_hours = st.checkbox(
+                                label = "Extended hours",
+                                help = "Determines whether the historical market data includes pre-market and post-market data",
+                                value = values['extended_hours'],
+                            )
+                            frequency = st.number_input(
+                                label = "Frequency",
+                                help = "The timeframe length of your market data",
+                                value = values['frequency'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            frequency_type = st.selectbox(
+                                label = "Frequency type",
+                                help = "The unit of measure associated with frequency",
+                                options = frequency_type_options,
+                                index = frequency_type_options.index(values['frequency_type'].lower())
+                            )
+                            period = st.number_input(
+                                label = "Period",
+                                help = "The length back of your market data",
+                                value = values['period'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            period_type = st.selectbox(
+                                label = "Period type",
+                                help = "The unit of measure associated with period",
+                                options = period_type_options,
+                                index = period_type_options.index(values['period_type'].lower())
+                            )
+                        with st.expander("Candles"):
+                            candle_type = st.selectbox(
+                                label = "Candle type",
+                                help = "The type of candle to construct from the market data",
+                                options = candle_type_options,
+                                index = candle_type_options.index(values['candle_type'])
+                            )
+                            wick_requirement = st.selectbox(
+                                label = "Wick requirement",
+                                help = "Determines if the candle must have no wick or smaller wick in order to enter a trade",
+                                options = wick_options,
+                                index = wick_options.index(values['wick_requirement'])
+                            )
+                        with st.expander("Indicators"):
+                            indicator = st.selectbox(
+                                label = "Indicator",
+                                help = "The indicator the bot will use to enter or exit trades",
+                                options = indicator_options,
+                                index = indicator_options.index(values['indicator'].upper()),
+                            )
+                            ema_length = st.number_input(
+                                label = "EMA length",
+                                help = "The length of the exponential moving average",
+                                value = values['ema_length'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            hma_length = st.number_input(
+                                label = "HMA length",
+                                help = "The length of the Hull Suite moving average",
+                                value = values['hma_length'],
+                                step = 1,
+                                min_value = 1
+                            )
+                        with st.expander("Option Contract"):
+                            order_type = st.radio(
+                                label = "Order type",
+                                help = "Specifies whether to use a market order or limit order (at mid price)",
+                                options = order_type_options,
+                                index = order_type_options.index(values['order_type']),
+                                horizontal = True
+                            )
+                            contracts = st.number_input(
+                                label = "Contracts",
+                                help = "The number of shares/option contracts the bot will purchase on entry",
+                                value = values['contracts'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            delta_min = st.slider(
+                                label = "Delta min",
+                                help = "Determines which strike in the option chain the bot will buy (0=OTM, 50=ATM, 99=ITM)",
+                                value = values['delta_min'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 99
+                            )
+                            dte_min = st.number_input(
+                                label = "DTE min",
+                                help = "Determines which expiration date in the option chain the bot will buy (0=today)",
+                                value = values['dte_min'],
+                                step = 1,
+                                min_value = 0,
+                            )
+                        with st.expander("Time"):
+                            confirm_time = st.number_input(
+                                label = "Confirm time",
+                                help = "The amount of time the bot will sit in a Heikin Ashi candle before exiting",
+                                value = values['confirm_time'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            confirm_unit = st.selectbox(
+                                label = "Confirm unit",
+                                help = "The unit of measure associated with confirm time",
+                                options = confirm_unit_options,
+                                index = confirm_unit_options.index(values['confirm_unit'].lower()),
+                            )
+                            pause_time = st.number_input(
+                                label = "Pause time",
+                                help = "The amount of time the bot will wait before attempting a re-entry",
+                                value = values['pause_time'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            pause_unit = st.selectbox(
+                                label = "Pause unit",
+                                help = "The unit of measure associated with pause time",
+                                options = confirm_unit_options,
+                                index = confirm_unit_options.index(values['pause_unit'].lower()),
+                            )
+                        with st.expander("Stoploss"):
+                            stoploss_type = st.selectbox(
+                                label = "Stoploss type",
+                                help = "The method of calculating stoploss",
+                                options = stoploss_options,
+                                index = stoploss_options.index(values['stoploss_type'])
+                            )
+                            stoploss = st.number_input(
+                                label = "Stoploss ($)",
+                                help = "The max amount of loss before closing",
+                                value = values['stoploss'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            stoploss_pct = st.slider(
+                                label = "Stoploss (%)",
+                                help = "The max percentage of loss before closing",
+                                value = values['stoploss_pct'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            trail_pct = st.slider(
+                                label = "Trail (%)",
+                                help = "The max trailing percentage of loss before closing",
+                                value = values['trail_pct'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                        with st.expander("Take profit"):
+                            take_profit_type = st.selectbox(
+                                label = "Take profit type",
+                                help = "The method of calculating take profit",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values['take_profit_type'])
+                            )
+                            take_profit = st.number_input(
+                                label = "Take profit ($)",
+                                help = "The max amount of gain before closing",
+                                value = values['take_profit'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            take_profit_pct = st.slider(
+                                label = "Take profit (%)",
+                                help = "The max percentage of gain before closing",
+                                value = values['take_profit_pct'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                        with st.expander("Trailing triggers"):
+                            trigger_trail_type = st.selectbox(
+                                label = "Trigger trail type",
+                                help = "The method of calculating trigger trail",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values['trigger_trail_type'])
+                            )
+                            trigger_trail = st.number_input(
+                                label = "Trigger trail ($)",
+                                help = "The gain amount threshold at which a trailing stop is triggered",
+                                value = values['trigger_trail'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            trigger_trail_pct = st.slider(
+                                label = "Trigger Trail (%)",
+                                help = "The gain percentage threshold at which a trailing stop is triggered",
+                                value = values['trigger_trail_pct'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            trigger_trail_trail_pct = st.slider(
+                                label = "Trail (%)",
+                                help = "The trailing stop percentage set after reaching the trailing trigger threshold",
+                                value = values['trigger_trail_trail_pct'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                        # max
+                        # min
                         # time_in_candle
-                        trail_pct = st.slider(
-                            label = "Trail (%): The max trailing percentage of loss before closing",
-                            value = values['trail_pct'],
-                            step = 1,
-                            min_value = 0,
-                            max_value = 100
-                        )
-                        trigger_trail = st.number_input(
-                            label = "Trigger trail ($)",
-                            help = "The gain amount at which a trailing stop triggers",
-                            value = values['trigger_trail'],
-                            step = 1,
-                            min_value = 0
-                        )
-                        trigger_trail_pct = st.slider(
-                            label = "Trigger Trail (%)",
-                            help = "The trailing stop set after reaching trigger",
-                            value = values['trigger_trail_pct'],
-                            step = 1,
-                            min_value = 0,
-                            max_value = 100
-                        )
-                        submit_settings = st.form_submit_button(label="Update Deta")
+                        submit_settings = st.form_submit_button(label="Update tickers")
                         if submit_settings:
                             entry = {
+                                "candle_type": candle_type,
                                 "confirm_time": confirm_time,
                                 "confirm_unit": confirm_unit,
                                 "contracts": contracts,
@@ -658,9 +741,13 @@ if auth:
                                 "frequency_type": frequency_type,
                                 "frequency": frequency,
                                 "hma_length": hma_length,
+                                "indicator": indicator,
                                 "key": ticker,
                                 "max": values['max'],
                                 "min": values['min'],
+                                "order_type": order_type,
+                                "pause_time": pause_time,
+                                "pause_unit": pause_unit,
                                 "period": period,
                                 "period_type": period_type, 
                                 "stoploss": stoploss,
@@ -673,8 +760,668 @@ if auth:
                                 "trail_pct": trail_pct,
                                 "trigger_trail": trigger_trail,
                                 "trigger_trail_pct": trigger_trail_pct,
+                                "trigger_trail_trail_pct": trigger_trail_trail_pct,
+                                "trigger_trail_type": trigger_trail_type,
+                                "triggered": values['triggered'],
+                                "use_close": use_close,
+                                "wick_requirement": wick_requirement,
                             }
                             tickers_db.put(entry)
+                            st.success('Deta updated successfully!', icon="✅")
+                with col2:
+                    st.title(f"Checkpoints for {ticker}")
+                    with st.form(key="checkpoint_settings"):
+                        with st.expander("Gain checkpoints"):
+                            st.header("1")
+                            checkpoint_on0 = st.checkbox(
+                                label = "On",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on0'],
+                            )
+                            activation_value0 = st.number_input(
+                                label = "Activation value ($)",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value0'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value0 = st.number_input(
+                                label = "Exit value ($)",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value0'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("2")
+                            checkpoint_on1 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on1",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on1'],
+                            )
+                            activation_value1 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value1",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value1'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value1 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value1",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value1'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("3")
+                            checkpoint_on2 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on2",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on2'],
+                            )
+                            activation_value2 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value2",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value2'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value2 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value2",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value2'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("4")
+                            checkpoint_on3 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on3",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on3'],
+                            )
+                            activation_value3 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value3",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value3'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value3 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value3",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value3'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("5")
+                            checkpoint_on4 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on4",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on4'],
+                            )
+                            activation_value4 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value4",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value4'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value4 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value4",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value4'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("6")
+                            checkpoint_on5 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on5",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on5'],
+                            )
+                            activation_value5 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value5",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value5'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value5 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value5",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value5'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("7")
+                            checkpoint_on6 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on6",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on6'],
+                            )
+                            activation_value6 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value6",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value6'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value6 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value6",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value6'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("8")
+                            checkpoint_on7 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on7",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on7'],
+                            )
+                            activation_value7 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value7",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value7'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value7 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value7",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value7'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("9")
+                            checkpoint_on8 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on8",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on8'],
+                            )
+                            activation_value8 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value8",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value8'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value8 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value8",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value8'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            st.header("10")
+                            checkpoint_on9 = st.checkbox(
+                                label = "On",
+                                key = "checkpoint_on9",
+                                help = "Determines whether the bot will use this checkpoint or not",
+                                value = values1['checkpoint_on9'],
+                            )
+                            activation_value9 = st.number_input(
+                                label = "Activation value ($)",
+                                key = "activation_value9",
+                                help = "The gain amount threshold at which the take profit stoploss will activate",
+                                value = values1['activation_value9'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            exit_value9 = st.number_input(
+                                label = "Exit value ($)",
+                                key = "exit_value9",
+                                help = "The gain amount threshold at which the bot will close out (only after being activated)",
+                                value = values1['exit_value9'],
+                                step = 1,
+                                min_value = 0
+                            )
+                        with st.expander("Contract checkpoints"):
+                            st.header("1")
+                            gain_type0 = st.radio(
+                                label = "Gain type",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type0']),
+                                horizontal = True
+                            )
+                            gain_amount0 = st.number_input(
+                                label = "Gain Amount ($)",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount0'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct0 = st.slider(
+                                label = "Gain Percent (%)",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct0'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr0 = st.number_input(
+                                label = "Number of contracts",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr0'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("2")
+                            gain_type1 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type1",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type1']),
+                                horizontal = True
+                            )
+                            gain_amount1 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount1",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount1'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct1 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct1",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct1'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr1 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr1",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr1'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("3")
+                            gain_type2 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type2",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type2']),
+                                horizontal = True
+                            )
+                            gain_amount2 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount2",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount2'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct2 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct2",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct2'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr2 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr2",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr2'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("4")
+                            gain_type3 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type3",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type3']),
+                                horizontal = True
+                            )
+                            gain_amount3 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount3",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount3'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct3 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct3",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct3'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr3 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr3",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr3'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("5")
+                            gain_type4 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type4",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type4']),
+                                horizontal = True
+                            )
+                            gain_amount4 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount4",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount4'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct4 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct4",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct4'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr4 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr4",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr4'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("6")
+                            gain_type5 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type5",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type5']),
+                                horizontal = True
+                            )
+                            gain_amount5 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount5",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount5'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct5 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct5",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct5'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr5 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr5",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr5'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("7")
+                            gain_type6 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type6",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type6']),
+                                horizontal = True
+                            )
+                            gain_amount6 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount6",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount6'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct6 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct6",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct6'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr6 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr6",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr6'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("8")
+                            gain_type7 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type7",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type7']),
+                                horizontal = True
+                            )
+                            gain_amount7 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount7",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount7'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct7 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct7",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct7'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr7 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr7",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr7'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("9")
+                            gain_type8 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type8",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type8']),
+                                horizontal = True
+                            )
+                            gain_amount8 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount8",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount8'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct8 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct8",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct8'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr8 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr8",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr8'],
+                                step = 1,
+                                min_value = 1
+                            )
+                            st.header("10")
+                            gain_type9 = st.radio(
+                                label = "Gain type",
+                                key = "gain_type9",
+                                help = "Specifies whether to use fixed dollar amount or fixed percent for checkpoint",
+                                options = take_profit_options,
+                                index = take_profit_options.index(values1['gain_type9']),
+                                horizontal = True
+                            )
+                            gain_amount9 = st.number_input(
+                                label = "Gain Amount ($)",
+                                key = "gain_amount9",
+                                help = "The gain amount threshold at contracts will be closed out",
+                                value = values1['gain_amount9'],
+                                step = 1,
+                                min_value = 0
+                            )
+                            gain_pct9 = st.slider(
+                                label = "Gain Percent (%)",
+                                key = "gain_pct9",
+                                help = "The gain percentage threshold at contracts will be closed out",
+                                value = values1['gain_pct9'],
+                                step = 1,
+                                min_value = 0,
+                                max_value = 100
+                            )
+                            contract_nbr9 = st.number_input(
+                                label = "Number of contracts",
+                                key = "contract_nbr9",
+                                help = "The number of shares/option contracts the bot will close out once at gain amount",
+                                value = values1['contract_nbr9'],
+                                step = 1,
+                                min_value = 1
+                            )
+                        submit_settings2 = st.form_submit_button(label="Update checkpoints")
+                        if submit_settings2:
+                            entry = {
+                                "key": ticker,
+                                "checkpoint_on0": checkpoint_on0,
+                                "activation_value0": activation_value0,
+                                "activated0": values1['activated0'],
+                                "exit_value0": exit_value0,
+                                "gain_type0": gain_type0,
+                                "gain_amount0": gain_amount0,
+                                "gain_pct0": gain_pct0,
+                                "contract_nbr0": contract_nbr0,
+                                "checkpoint_on1": checkpoint_on1,
+                                "activation_value1": activation_value1,
+                                "activated1": values1['activated1'],
+                                "exit_value1": exit_value1,
+                                "gain_type1": gain_type1,
+                                "gain_amount1": gain_amount1,
+                                "gain_pct1": gain_pct1,
+                                "contract_nbr1": contract_nbr1,
+                                "checkpoint_on2": checkpoint_on2,
+                                "activation_value2": activation_value2,
+                                "activated2": values1['activated2'],
+                                "exit_value2": exit_value2,
+                                "gain_type2": gain_type2,
+                                "gain_amount2": gain_amount2,
+                                "gain_pct2": gain_pct2,
+                                "contract_nbr2": contract_nbr2,
+                                "checkpoint_on3": checkpoint_on3,
+                                "activation_value3": activation_value3,
+                                "activated3": values1['activated3'],
+                                "exit_value3": exit_value3,
+                                "gain_type3": gain_type3,
+                                "gain_amount3": gain_amount3,
+                                "gain_pct3": gain_pct3,
+                                "contract_nbr3": contract_nbr3,
+                                "checkpoint_on4": checkpoint_on4,
+                                "activation_value4": activation_value4,
+                                "activated4": values1['activated4'],
+                                "exit_value4": exit_value4,
+                                "gain_type4": gain_type4,
+                                "gain_amount4": gain_amount4,
+                                "gain_pct4": gain_pct4,
+                                "contract_nbr4": contract_nbr4,
+                                "checkpoint_on5": checkpoint_on5,
+                                "activation_value5": activation_value5,
+                                "activated5": values1['activated5'],
+                                "exit_value5": exit_value5,
+                                "gain_type5": gain_type5,
+                                "gain_amount5": gain_amount5,
+                                "gain_pct5": gain_pct5,
+                                "contract_nbr5": contract_nbr5,
+                                "checkpoint_on6": checkpoint_on6,
+                                "activation_value6": activation_value6,
+                                "activated6": values1['activated6'],
+                                "exit_value6": exit_value6,
+                                "gain_type6": gain_type6,
+                                "gain_amount6": gain_amount6,
+                                "gain_pct6": gain_pct6,
+                                "contract_nbr6": contract_nbr6,
+                                "checkpoint_on7": checkpoint_on7,
+                                "activation_value7": activation_value7,
+                                "activated7": values1['activated7'],
+                                "exit_value7": exit_value7,
+                                "gain_type7": gain_type7,
+                                "gain_amount7": gain_amount7,
+                                "gain_pct7": gain_pct7,
+                                "contract_nbr7": contract_nbr7,
+                                "checkpoint_on8": checkpoint_on8,
+                                "activation_value8": activation_value8,
+                                "activated8": values1['activated8'],
+                                "exit_value8": exit_value8,
+                                "gain_type8": gain_type8,
+                                "gain_amount8": gain_amount8,
+                                "gain_pct8": gain_pct8,
+                                "contract_nbr8": contract_nbr8,
+                                "checkpoint_on9": checkpoint_on9,
+                                "activation_value9": activation_value9,
+                                "activated9": values1['activated9'],
+                                "exit_value9": exit_value9,
+                                "gain_type9": gain_type9,
+                                "gain_amount9": gain_amount9,
+                                "gain_pct9": gain_pct9,
+                                "contract_nbr9": contract_nbr9,
+                            }
+                            checkpoints_db.put(entry)
                             st.success('Deta updated successfully!', icon="✅")
 
     # ---- HIDE STREAMLIT STYLE ----

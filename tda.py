@@ -341,7 +341,7 @@ def get_chain_tda(ticker):
     }
     return result
 
-def tda_submit_order(instruction, quantity, symbol, assetType="OPTION"):
+def tda_submit_order(instruction, quantity, symbol, assetType="OPTION", orderType="MARKET", limit_price=0):
     tda_orders_url = '{}/v1/accounts/{}/orders'.format(tda_base, tda_account)
     if "_" not in symbol:
         assetType = "EQUITY"
@@ -354,21 +354,23 @@ def tda_submit_order(instruction, quantity, symbol, assetType="OPTION"):
         elif instruction == "SELL_TO_CLOSE":
             instruction = "SELL"
     data = {
-        "orderType": "MARKET",
+        "orderType": orderType, # MARKET or LIMIT
         "session": "NORMAL",
         "duration": "DAY",
         "orderStrategyType": "SINGLE",
         "orderLegCollection": [
             {
-            "instruction": instruction,
-            "quantity": quantity,
-            "instrument": {
-                "symbol": symbol,
-                "assetType": assetType # EQUITY or OPTION
-            }
+                "instruction": instruction,
+                "quantity": quantity,
+                "instrument": {
+                    "symbol": symbol,
+                    "assetType": assetType # EQUITY or OPTION
+                }
             }
         ]
     }
+    if orderType == "LIMIT" and float(limit_price) != 0:
+        data["price"] = str(limit_price)
     tda_headers = tda_authenticate()
     r = requests.post(tda_orders_url, json=data, headers = tda_headers)
     if r.status_code in [200, 201]:

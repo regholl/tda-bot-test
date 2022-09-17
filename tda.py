@@ -1,3 +1,5 @@
+# This file contains all the functions that hook up to the TD Ameritrade API
+
 # Import packages
 
 import datetime as dt

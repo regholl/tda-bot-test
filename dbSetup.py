@@ -1,4 +1,4 @@
-# Run this file once to create database tables
+# This file creates several tables in our Deta base with the below default values; run only once
 
 # Import packages
 
@@ -20,8 +20,6 @@ checkpoints_db = deta.Base("checkpoints_db")
 # keys = [item['key'] for item in items]
 # for key in keys:
 #     config_db.delete(key)
-config_db.delete("PAUSE_TIME")
-config_db.delete("PAUSE_UNIT")
 
 # Fetch existing entries in users_db and delete them
 
@@ -110,6 +108,7 @@ use_closes = [False] * len(tickers)
 wick_requirements = ["Any wick okay"] * len(tickers)
 candle_types = ["Heikin Ashi"] * len(tickers)
 order_types = ["MARKET"] * len(tickers)
+option_types = ["Both calls and puts"] * len(tickers)
 
 for i in range(len(tickers)):
     entry = {
@@ -148,6 +147,7 @@ for i in range(len(tickers)):
         "wick_requirement": wick_requirements[i],
         "candle_type": candle_types[i],
         "order_type": order_types[i],
+        "option_type": option_types[i],
     }
     tickers_db.put(entry)
 

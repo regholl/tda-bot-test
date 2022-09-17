@@ -1,3 +1,5 @@
+# This file contains a function to connects to our Deta base
+
 # Import required packages
 
 from boto.s3.connection import S3Connection 

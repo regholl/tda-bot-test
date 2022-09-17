@@ -1,3 +1,5 @@
+# This is the file which determines the layout/look of your webpage
+
 # Import packages
 
 import datetime as dt # pip install datetime
@@ -8,7 +10,7 @@ import plotly.graph_objs as go  # pip install plotly
 import streamlit as st  # pip install streamlit
 import streamlit.components.v1 as components
 import streamlit_authenticator as stauth  # pip install streamlit-authenticator
-from streamlit_option_menu import option_menu # pip install streamlit-option-menu
+# from streamlit_option_menu import option_menu # pip install streamlit-option-menu
 import ta # pip install ta
 from tda import *
 
@@ -507,6 +509,7 @@ if auth:
                 frequency_type_options = ["minute", "daily", "weekly", "monthly"]
                 period_type_options = ["day", "month", "year", "ytd"]
                 wick_options = ["Any wick okay", "Can't have wick", "Can have wick, but must be smaller"]
+                option_type_options = ["Both calls and puts", "Calls only", "Puts only"]
                 order_type_options = ["MARKET", "LIMIT"]
                 stoploss_options = ["Fixed $", "Fixed %", "Trailing %", "None"]
                 take_profit_options = ["Fixed $", "Fixed %", "None"]
@@ -592,6 +595,12 @@ if auth:
                                 options = order_type_options,
                                 index = order_type_options.index(values['order_type']),
                                 horizontal = True
+                            )
+                            option_type = st.selectbox(
+                                label = "Option type",
+                                help = "Determines whether bot will trade only calls, only puts, or both",
+                                options = option_type_options,
+                                index = option_type_options.index(values['option_type']),
                             )
                             contracts = st.number_input(
                                 label = "Contracts",
@@ -745,6 +754,7 @@ if auth:
                                 "key": ticker,
                                 "max": values['max'],
                                 "min": values['min'],
+                                "option_type": option_type,
                                 "order_type": order_type,
                                 "pause_time": pause_time,
                                 "pause_unit": pause_unit,

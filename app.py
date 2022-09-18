@@ -291,6 +291,7 @@ if auth:
     deta_link = f"Click here to view these settings in [Deta](https://web.deta.sh/home/{deta_name}/default/bases/tickers_db)"
     if selected_side == "Deta":
         st.title("Deta")
+        st.write(f"You are currently holding {len(tickers)} tickers: {tickers}")
         st.dataframe(data=tickers_info)
         with st.form(key="tickers"):
             edit_symbol = st.text_input(

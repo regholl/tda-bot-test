@@ -488,9 +488,9 @@ if auth:
                 """
                 supported_intervals = [1, 3, 5, 15, 30, 45, 60, 120, 180, 240]
                 if frequencyType == "minute":
-                    interval = str(frequency)
+                    interval = frequency
                 elif frequencyType == "hourly":
-                    interval = str(frequency * 60)
+                    interval = frequency * 60
                 elif frequencyType == "daily":
                     interval = "D"
                 elif frequencyType == "weekly":
@@ -502,7 +502,7 @@ if auth:
                     mini = min(diffs)
                     idx = diffs.index(mini)
                     interval = supported_intervals[idx]
-                tv_chart = tv_chart.replace("D", interval)
+                tv_chart = tv_chart.replace("D", str(interval))
                 tv_chart = tv_chart.replace("SPY", ticker)
                 # Style:8 is for Heikin Ashi
                 if tickers_info[idx]['candle_type'] != "Heikin Ashi":

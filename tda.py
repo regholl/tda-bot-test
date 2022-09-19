@@ -137,26 +137,31 @@ def get_data_tda(ticker="SPY", periodType="day", period=10, frequencyType="minut
             bars_Xmin = []
             highs_Xmin = []
             lows_Xmin = []
+            volumes_Xmin = []
             for bar in bars:
                 timestampX = pd.to_datetime(int(bar['datetime']) * 1000000)
                 hourX = timestampX.strftime("%H:%M")
                 if hourX in bar_hour_starts_utc and len(bars_Xmin) > 0:
                     highs_Xmin = []
                     lows_Xmin = []
+                    volumes_Xmin = []
                     for barX in bars_Xmin:
                         highs_Xmin.append(barX['high'])
                         lows_Xmin.append(barX['low'])
+                        volumes_Xmin.append(barX['volume'])
                     highX = max(highs_Xmin)
                     lowX = min(lows_Xmin)
+                    volumeX = sum(volumes_Xmin)
                     openX = bars_Xmin[0]['open']
                     closeX = bars_Xmin[len(bars_Xmin)-1]['close']
                     bar_hour = {
                         "timestamp": timestampX,
-                        "time": bar['datetime'],
+                        "datetime": bar['datetime'],
                         "open": openX,
                         "high": highX,
                         "low": lowX,
-                        "close": closeX
+                        "close": closeX,
+                        "volume": volumeX,
                     }
                     bars_hour.append(bar_hour)
                     bars_Xmin = []
@@ -167,26 +172,31 @@ def get_data_tda(ticker="SPY", periodType="day", period=10, frequencyType="minut
             bars_X = []
             highs_X = []
             lows_X = []
+            volumes_X = []
             counter = 0
             for bar in bars:
                 timestampX = pd.to_datetime(int(bar['datetime']) * 1000000)
                 if counter == factor and len(bars_X) > 0:
                     highs_X = []
                     lows_X = []
+                    volumes_X = []
                     for barX in bars_X:
                         highs_X.append(barX['high'])
                         lows_X.append(barX['low'])
+                        volumes_X.append(barX['volume'])
                     highX = max(highs_X)
                     lowX = min(lows_X)
+                    volumeX = sum(volumes_X)
                     openX = bars_X[0]['open']
                     closeX = bars_X[len(bars_X)-1]['close']
                     bar_revised = {
                         "timestamp": timestampX,
-                        "time": bar['datetime'],
+                        "datetime": bar['datetime'],
                         "open": openX,
                         "high": highX,
                         "low": lowX,
-                        "close": closeX
+                        "close": closeX,
+                        "volume": volumeX,
                     }
                     bars_revised.append(bar_revised)
                     bars_X = []

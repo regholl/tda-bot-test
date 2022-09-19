@@ -3,7 +3,6 @@
 # Import required packages
 
 import datetime as dt
-from pickle import FALSE
 from db import *
 import math
 import numpy as np

@@ -307,36 +307,50 @@ def run():
         trigger_trail_trail_pct = ticker_dict[tickers[i]]["trigger_trail_trail_pct"]
         if trigger_trail_type == "Fixed $":
             if (tda_gainloss > trigger_trail or triggered == True) and tickers[i] in tda_symbols_held:
+                tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] + trigger_trail, 2)
                 if ticker_dict[tickers[i]]["triggered"] != True:
-                    print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered due to \
+                    print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered on ticker {tickers[i]} due to \
                             gainloss {tda_gainloss} > trigger_trail {trigger_trail}")
                     ticker_dict[tickers[i]]["triggered"] = True
                     entry = tickers_db.get(tickers[i])
                     entry["triggered"] = True
-                    # entry["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] - trigger_trail, 2)
+                    # entry["costbasis"] = tda_costbasis
                     # entry["stoploss_type"] = "Trailing %"
                     # entry["trail_pct"] = trigger_trail_trail_pct
                     tickers_db.put(entry)
-                tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] + trigger_trail, 2)
                 ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
+            elif tickers[i] not in tda_symbols_held:
+                if ticker_dict[tickers[i]]["triggered"] == True:
+                    print(f"Ticker {tickers[i]} not found, triggered set to False")
+                    ticker_dict[tickers[i]]["triggered"] = False
+                    entry = tickers_db.get(tickers[i])
+                    entry["triggered"] = False
+                    tickers_db.put(entry)
         elif trigger_trail_type == "Fixed %":
             if (tda_gainloss_pct > trigger_trail_pct or triggered == True) and tickers[i] in tda_symbols_held:
+                tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
                 if ticker_dict[tickers[i]]["triggered"] != True:
-                    print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered due to \
+                    print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered on ticker {tickers[i]} due to \
                             gainloss of {tda_gainloss_pct}% > {trigger_trail_pct}%")
                     ticker_dict[tickers[i]]["triggered"] = True
                     entry = tickers_db.get(tickers[i])
                     entry["triggered"] = True
-                    # entry["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
+                    # entry["costbasis"] = tda_costbasis
                     # entry["stoploss_type"] = "Trailing %"
                     # entry["trail_pct"] = trigger_trail_trail_pct
                     tickers_db.put(entry)
-                tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
                 ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
+            elif tickers[i] not in tda_symbols_held:
+                if ticker_dict[tickers[i]]["triggered"] == True:
+                    print(f"Ticker {tickers[i]} not found, triggered set to False")
+                    ticker_dict[tickers[i]]["triggered"] = False
+                    entry = tickers_db.get(tickers[i])
+                    entry["triggered"] = False
+                    tickers_db.put(entry)
         elif trigger_trail_type == "None":
             entry = ""
 
@@ -620,7 +634,7 @@ def run():
             print(ticker_dict)
     else:
         print_log = [
-            ["---------------", "---------------"]
+            ["Execution Speed",f" = {time_total} seconds"],
         ]
 
     for item_list in print_log:

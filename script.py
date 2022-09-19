@@ -101,6 +101,47 @@ def run():
         frequency = int(ticker_dict[ticker]['frequency'])
         extended_hours = ticker_dict[ticker]['extended_hours']
 
+        # Shorten data period if able to increase speed
+
+        ema_window = int(ticker_dict[ticker]['ema_length'])
+        hma_window = int(ticker_dict[ticker]['hma_length'])
+        max_window = max(ema_window, hma_window)
+        min_in_day = 60 * 6.5
+        if frequencyType == "minute":
+            min_req = frequency * max_window
+            day_req = int(min_req / min_in_day) + 1
+            day_req = max(day_req, 2)
+            if day_req <= 10:
+                valid_periods_day = [1, 2, 3, 4, 5, 10]
+                if day_req in valid_periods_day:
+                    period = day_req
+                else:
+                    period = 10
+            else:
+                periodType = "month"
+                mon_req = int(day_req / 31) + 1
+                if mon_req <= 6:
+                    valid_periods_month = [1, 2, 3, 6]
+                    if mon_req in valid_periods_month:
+                        period = mon_req
+                    else:
+                        period = 6
+                else:
+                    periodType = "year"
+                    yr_req = int(mon_req / 12) + 1
+                    if yr_req <= 20:
+                        valid_periods_year = [1, 2, 3, 5, 10, 15, 20]
+                        if yr_req in valid_periods_year:
+                            period = yr_req
+                        elif 3 < yr_req < 5:
+                            yr_req = 5
+                        elif 5 < yr_req < 10:
+                            yr_req = 10
+                        elif 10 < yr_req < 15:
+                            yr_req = 15
+                        else:
+                            yr_req = 20
+
         # Fetch data from TDA API
 
         data = get_data_tda(ticker=ticker, periodType=periodType, period=period, frequencyType=frequencyType, frequency=frequency, extended_hours=extended_hours)
@@ -177,12 +218,10 @@ def run():
 
         # Calculate technical indicators
 
-        ema_window = int(ticker_dict[ticker]['ema_length'])
         emas_all = np.round(ta.trend.ema_indicator(pd.to_numeric(df['close']), window=ema_window), 2)
         ema = emas_all[len(emas_all)-1]
         ticker_dict[ticker]["ema"] = ema
 
-        hma_window = int(ticker_dict[ticker]['hma_length'])
         hma1 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=int(hma_window/2))
         hma2 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=hma_window)
         hma_raw = (2 * hma1) - hma2
@@ -434,11 +473,14 @@ def run():
             stoploss = ticker_dict[tickers[i]]["stoploss"]
             gainloss_pct = ticker_dict[tickers[i]]["gainloss_pct"]
             gainloss = ticker_dict[tickers[i]]["gainloss"]
-            drawdown_from_high = ticker_dict[tickers[i]]["max"] - ticker_dict[tickers[i]]["market_value"]
-            drawdown_from_low = ticker_dict[tickers[i]]["market_value"] - ticker_dict[tickers[i]]["min"]
+            market_value = ticker_dict[tickers[i]]["market_value"]
+            maxi = ticker_dict[tickers[i]]["max"]
+            mini = ticker_dict[tickers[i]]["min"]
+            drawdown_from_high = maxi - market_value
+            drawdown_from_low = market_value - mini
             try:
-                drawdown_pct_high = np.round((drawdown_from_high / ticker_dict[tickers[i]]["max"]) * 100, 2)
-                drawdown_pct_low = np.round((drawdown_from_low / ticker_dict[tickers[i]]["min"]) * 100, 2)
+                drawdown_pct_high = np.round((drawdown_from_high / maxi) * 100, 2)
+                drawdown_pct_low = np.round((drawdown_from_low / mini) * 100, 2)
             except ZeroDivisionError:
                 drawdown_pct_high = 0
                 drawdown_pct_low = 0
@@ -509,7 +551,7 @@ def run():
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
                     if ticker_dict[tickers[i]]["stoploss_type"] == "Trailing %":
-                        exit_log = exit_log + f" drawdown % {drawdown_pct_high} > trail % {trail_pct}"
+                        exit_log = exit_log + f" drawdown % {drawdown_pct_high} > trail % {trail_pct}, max = {maxi}, market_value = {market_value}"
                     elif ticker_dict[tickers[i]]["stoploss_type"] == "Fixed %":
                         exit_log = exit_log + f" gainloss % {gainloss_pct} > stoploss % {stoploss_pct}"
                     elif ticker_dict[tickers[i]]["stoploss_type"] == "Fixed $":

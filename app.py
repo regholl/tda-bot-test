@@ -486,14 +486,22 @@ if auth:
                         </script>
                     </div>
                 """
+                supported_intervals = [1, 3, 5, 15, 30, 45, 60, 120, 180, 240]
                 if frequencyType == "minute":
                     interval = str(frequency)
+                elif frequencyType == "hourly":
+                    interval = str(frequency * 60)
                 elif frequencyType == "daily":
                     interval = "D"
                 elif frequencyType == "weekly":
                     interval = "W"
                 elif frequencyType == "monthly":
                     interval = "M"
+                if type(interval) != str and interval not in supported_intervals:
+                    diffs = list(abs(np.array(supported_intervals) - interval))
+                    mini = min(diffs)
+                    idx = diffs.index(mini)
+                    interval = supported_intervals[idx]
                 tv_chart = tv_chart.replace("D", interval)
                 tv_chart = tv_chart.replace("SPY", ticker)
                 # Style:8 is for Heikin Ashi

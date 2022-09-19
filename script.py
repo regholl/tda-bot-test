@@ -344,7 +344,7 @@ def run():
     for i in range(len(tickers)):
         values1 = checkpoints_db.get(tickers[i])
         for j in range(cp):
-            if tickers[i] in tda_symbols_held and ticker_dict[tickers[i]]["checkpoint_on"]:
+            if tickers[i] in tda_symbols_held and ticker_dict[tickers[i]][f"checkpoint_on{j}"]:
                 if ticker_dict[tickers[i]]["gainloss"] > ticker_dict[tickers[i]][f"activation_value{j}"] \
                 and ticker_dict[tickers[i]][f"activated{j}"] != True:
                     ticker_dict[tickers[i]][f"activated{j}"] = True
@@ -551,7 +551,7 @@ def run():
         option_type = ticker_dict[tickers[i]]["option_type"]
         mid = ticker_dict[tickers[i]]["mid"]
         condition2 = tickers[i] not in tda_symbols_held
-        condition3 = ticker_dict[tickers[i]]["bullish_candle"] # bullish_candles[i]
+        condition3 = ticker_dict[tickers[i]]["bullish_candle"]
         if ticker_dict[tickers[i]]["wick_requirement"] == "Any wick okay":
             condition4 = True
         elif ticker_dict[tickers[i]]["wick_requirement"] == "Can't have wick":
@@ -586,10 +586,12 @@ def run():
         contracts = ticker_dict[tickers[i]]["contracts"]
         if bullish_entry:
             entry_symbol = ticker_dict[tickers[i]]["chain"]["call"]
+            # entry_symbol = entry_symbol.split("_")[0]
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bullish entry: Buying {contracts} contracts of {entry_symbol}")
         if bearish_entry:
             entry_symbol = ticker_dict[tickers[i]]["chain"]["put"]
+            # entry_symbol = entry_symbol.split("_")[0]
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bearish entry: Buying {contracts} contracts of {entry_symbol}")
 

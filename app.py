@@ -342,6 +342,7 @@ if auth:
             if selected_ticker == ticker:
 
                 # Plotly chart
+
                 idx = tickers.index(ticker)
                 quote = get_quote_tda(ticker)
                 last = str(np.round(float(quote[ticker]['lastPrice']), 2))
@@ -349,11 +350,54 @@ if auth:
                     last = last + ".00"
                 if len(last.split(".")[1]) == 1:
                     last = last + "0"
+
                 periodType = tickers_info[idx]['period_type']
                 period = tickers_info[idx]['period']
                 frequencyType = tickers_info[idx]['frequency_type']
                 frequency = tickers_info[idx]['frequency']
                 extended_hours = tickers_info[idx]['extended_hours']
+
+                # Shorten data period if able to increase speed
+
+                ema_window = int(tickers_info[idx]['ema_length'])
+                hma_window = int(tickers_info[idx]['hma_length'])
+                max_window = max(ema_window, hma_window)
+                min_in_day = 60 * 6.5
+                if frequencyType == "minute":
+                    min_req = frequency * max_window * 2
+                    day_req = int(min_req / min_in_day) + 1
+                    day_req = max(day_req, 2)
+                    if day_req <= 10:
+                        valid_periods_day = [1, 2, 3, 4, 5, 10]
+                        if day_req in valid_periods_day:
+                            period = day_req
+                        else:
+                            period = 10
+                    else:
+                        periodType = "month"
+                        mon_req = int(day_req / 31) + 1
+                        if mon_req <= 6:
+                            valid_periods_month = [1, 2, 3, 6]
+                            if mon_req in valid_periods_month:
+                                period = mon_req
+                            else:
+                                period = 6
+                        else:
+                            periodType = "year"
+                            yr_req = int(mon_req / 12) + 1
+                            if yr_req <= 20:
+                                valid_periods_year = [1, 2, 3, 5, 10, 15, 20]
+                                if yr_req in valid_periods_year:
+                                    period = yr_req
+                                elif 3 < yr_req < 5:
+                                    yr_req = 5
+                                elif 5 < yr_req < 10:
+                                    yr_req = 10
+                                elif 10 < yr_req < 15:
+                                    yr_req = 15
+                                else:
+                                    yr_req = 20
+
                 data = get_data_tda(ticker=ticker, periodType=periodType, period=period, frequencyType=frequencyType, frequency=frequency, extended_hours=extended_hours)
                 # print(data[-2:])
                 df = pd.DataFrame()
@@ -414,7 +458,6 @@ if auth:
                     name = 'Candles',
                 ))
                 if "EMA" in selected_indicators:
-                    ema_window = tickers_info[idx]['ema_length']
                     ema = np.round(ta.trend.ema_indicator(pd.to_numeric(df['close']), window=ema_window), 2)
                     fig.add_trace(go.Scatter(
                         x = df['datetime'], 
@@ -423,7 +466,6 @@ if auth:
                         name = f'EMA {ema_window}'
                     ))
                 if "HMA" in selected_indicators:
-                    hma_window = tickers_info[idx]['hma_length']
                     hma1 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=int(hma_window/2))
                     hma2 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=hma_window)
                     hma_raw = (2 * hma1) - hma2

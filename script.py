@@ -306,35 +306,37 @@ def run():
         triggered = ticker_dict[tickers[i]]["triggered"]
         trigger_trail_trail_pct = ticker_dict[tickers[i]]["trigger_trail_trail_pct"]
         if trigger_trail_type == "Fixed $":
-            if tda_gainloss > trigger_trail or triggered == True:
-                entry = tickers_db.get(tickers[i])
-                entry["triggered"] = True
-                # entry["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] - trigger_trails[i], 2)
-                # entry["stoploss_type"] = "Trailing %"
-                # entry["trail_pct"] = trigger_trail_trail_pcts[i]
+            if (tda_gainloss > trigger_trail or triggered == True) and tickers[i] in tda_symbols_held:
+                if ticker_dict[tickers[i]]["triggered"] != True:
+                    print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered due to \
+                            gainloss {tda_gainloss} > trigger_trail {trigger_trail}")
+                    ticker_dict[tickers[i]]["triggered"] = True
+                    entry = tickers_db.get(tickers[i])
+                    entry["triggered"] = True
+                    # entry["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] - trigger_trail, 2)
+                    # entry["stoploss_type"] = "Trailing %"
+                    # entry["trail_pct"] = trigger_trail_trail_pct
+                    tickers_db.put(entry)
                 tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] + trigger_trail, 2)
-                ticker_dict[tickers[i]]["triggered"] = True
-                ticker_dict[tickers[i]]["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] + trigger_trail, 2)
+                ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
-                tickers_db.put(entry)
-                print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered due to \
-                        gainloss {tda_gainloss} > trigger_trail {trigger_trail}")
         elif trigger_trail_type == "Fixed %":
-            if tda_gainloss_pct > trigger_trail_pct or triggered == True:
-                entry = tickers_db.get(tickers[i])
-                entry["triggered"] = True
-                # entry["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
-                # entry["stoploss_type"] = "Trailing %"
-                # entry["trail_pct"] = trigger_trail_trail_pct
+            if (tda_gainloss_pct > trigger_trail_pct or triggered == True) and tickers[i] in tda_symbols_held:
+                if ticker_dict[tickers[i]]["triggered"] != True:
+                    print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered due to \
+                            gainloss of {tda_gainloss_pct}% > {trigger_trail_pct}%")
+                    ticker_dict[tickers[i]]["triggered"] = True
+                    entry = tickers_db.get(tickers[i])
+                    entry["triggered"] = True
+                    # entry["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
+                    # entry["stoploss_type"] = "Trailing %"
+                    # entry["trail_pct"] = trigger_trail_trail_pct
+                    tickers_db.put(entry)
                 tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
-                ticker_dict[tickers[i]]["triggered"] = True
-                ticker_dict[tickers[i]]["costbasis"] = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
+                ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
-                tickers_db.put(entry)
-                print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered due to \
-                        gainloss of {tda_gainloss_pct}% > {trigger_trail_pct}%")
         elif trigger_trail_type == "None":
             entry = ""
 
@@ -421,8 +423,8 @@ def run():
             drawdown_from_high = ticker_dict[tickers[i]]["max"] - ticker_dict[tickers[i]]["market_value"]
             drawdown_from_low = ticker_dict[tickers[i]]["market_value"] - ticker_dict[tickers[i]]["min"]
             try:
-                drawdown_pct_high = np.round((drawdown_from_high / ticker_dict[tickers[i]]["max"] - 1) * 100, 2)
-                drawdown_pct_low = np.round((drawdown_from_low / ticker_dict[tickers[i]]["min"] - 1) * 100, 2)
+                drawdown_pct_high = np.round((drawdown_from_high / ticker_dict[tickers[i]]["max"]) * 100, 2)
+                drawdown_pct_low = np.round((drawdown_from_low / ticker_dict[tickers[i]]["min"]) * 100, 2)
             except ZeroDivisionError:
                 drawdown_pct_high = 0
                 drawdown_pct_low = 0

@@ -500,8 +500,8 @@ if auth:
                 if type(interval) != str and interval not in supported_intervals:
                     diffs = list(abs(np.array(supported_intervals) - interval))
                     mini = min(diffs)
-                    idx = diffs.index(mini)
-                    interval = supported_intervals[idx]
+                    idx1 = diffs.index(mini)
+                    interval = supported_intervals[idx1]
                 tv_chart = tv_chart.replace("D", str(interval))
                 tv_chart = tv_chart.replace("SPY", ticker)
                 # Style:8 is for Heikin Ashi

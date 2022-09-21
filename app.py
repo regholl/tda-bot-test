@@ -571,7 +571,7 @@ if auth:
                         with st.expander("Market data"):
                             use_close = st.checkbox(
                                 label = "Use Close",
-                                help = "Determines whether entries/exits will happen in the middle of a candle or only after candle close",
+                                help = "Determines whether entries will happen in the middle of a candle or only after candle close (exits will always happen in the middle)",
                                 value = values['use_close'],
                             )
                             extended_hours = st.checkbox(

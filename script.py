@@ -175,38 +175,67 @@ def run():
 
         # Determine if candles and wicks are bullish or bearish
 
-        if ticker_dict[ticker]["use_close"]:
-            last_open = tda_opens[len(tda_opens)-2]
-            last_high = tda_highs[len(tda_highs)-2]
-            last_low = tda_lows[len(tda_lows)-2]
-            last_close = tda_closes[len(tda_closes)-2]
+        last_open1 = tda_opens[len(tda_opens)-1]
+        last_high1 = tda_highs[len(tda_highs)-1]
+        last_low1 = tda_lows[len(tda_lows)-1]
+        last_close1 = tda_closes[len(tda_closes)-1]
+        ticker_dict[ticker]["last_open1"] = last_open1
+        ticker_dict[ticker]["last_high1"] = last_high1
+        ticker_dict[ticker]["last_low1"] = last_low1
+        ticker_dict[ticker]["last_close1"] = last_close1
+
+        if last_close1 > last_open1:
+            bullish_candle1 = True
+        elif last_close1 < last_open1:
+            bullish_candle1 = False
         else:
-            last_open = tda_opens[len(tda_opens)-1]
-            last_high = tda_highs[len(tda_highs)-1]
-            last_low = tda_lows[len(tda_lows)-1]
-            last_close = tda_closes[len(tda_closes)-1]
-        ticker_dict[ticker]["last_open"] = last_open
-        ticker_dict[ticker]["last_high"] = last_high
-        ticker_dict[ticker]["last_low"] = last_low
-        ticker_dict[ticker]["last_close"] = last_close
-        if last_close > last_open:
-            bullish_candle = True
-        elif last_close < last_open:
-            bullish_candle = False
+            bullish_candle1 = None
+
+        ticker_dict[ticker]["bullish_candle1"] = bullish_candle1
+        candle_body1 = abs(last_close1 - last_open1)
+        candle_wick_top1 = last_high1 - max(last_close1, last_open1)
+        candle_wick_bottom1 = min(last_close1, last_high1) - last_low1
+
+        if candle_wick_top1 + candle_wick_bottom1 > candle_body1:
+            doji_candle1 = True
         else:
-            bullish_candle = None
-        ticker_dict[ticker]["bullish_candle"] = bullish_candle
-        candle_body = abs(last_close - last_open)
-        candle_wick_top = last_high - max(last_close, last_open)
-        candle_wick_bottom = min(last_close, last_high) - last_low
-        if candle_wick_top + candle_wick_bottom > candle_body:
-            doji_candle = True
+            doji_candle1 = False
+
+        ticker_dict[ticker]["candle_body1"] = candle_body1
+        ticker_dict[ticker]["candle_wick_top1"] = candle_wick_top1
+        ticker_dict[ticker]["candle_wick_bottom1"] = candle_wick_bottom1
+        ticker_dict[ticker]["doji_candle1"] = doji_candle1
+
+        last_open2 = tda_opens[len(tda_opens)-2]
+        last_high2 = tda_highs[len(tda_highs)-2]
+        last_low2 = tda_lows[len(tda_lows)-2]
+        last_close2 = tda_closes[len(tda_closes)-2]
+        ticker_dict[ticker]["last_open2"] = last_open2
+        ticker_dict[ticker]["last_high2"] = last_high2
+        ticker_dict[ticker]["last_low2"] = last_low2
+        ticker_dict[ticker]["last_close2"] = last_close2
+
+        if last_close2 > last_open2:
+            bullish_candle2 = True
+        elif last_close2 < last_open2:
+            bullish_candle2 = False
         else:
-            doji_candle = False
-        ticker_dict[ticker]["candle_body"] = candle_body
-        ticker_dict[ticker]["candle_wick_top"] = candle_wick_top
-        ticker_dict[ticker]["candle_wick_bottom"] = candle_wick_bottom
-        ticker_dict[ticker]["doji_candle"] = doji_candle
+            bullish_candle2 = None
+
+        ticker_dict[ticker]["bullish_candle2"] = bullish_candle2
+        candle_body2 = abs(last_close2 - last_open2)
+        candle_wick_top2 = last_high2 - max(last_close2, last_open2)
+        candle_wick_bottom2 = min(last_close2, last_high2) - last_low2
+
+        if candle_wick_top2 + candle_wick_bottom2 > candle_body2:
+            doji_candle2 = True
+        else:
+            doji_candle2 = False
+
+        ticker_dict[ticker]["candle_body2"] = candle_body2
+        ticker_dict[ticker]["candle_wick_top2"] = candle_wick_top2
+        ticker_dict[ticker]["candle_wick_bottom2"] = candle_wick_bottom2
+        ticker_dict[ticker]["doji_candle2"] = doji_candle2
 
         # Create dataframe and fill with market data
 
@@ -231,34 +260,51 @@ def run():
 
         # Determine if moving averages are bullish or bearish
 
-        if ticker_dict[ticker]["use_close"]:
-            last_ema = emas_all[len(emas_all)-2]
-            last_ema1 = emas_all[len(emas_all)-3]
-            last_hma = hmas_all[len(hmas_all)-2]
-            last_hma1 = hmas_all[len(hmas_all)-3]
-        else:
-            last_ema = emas_all[len(emas_all)-1]
-            last_ema1 = emas_all[len(emas_all)-2]
-            last_hma = hmas_all[len(hmas_all)-1]
-            last_hma1 = hmas_all[len(hmas_all)-2]
-        ticker_dict[ticker]["last_ema"] = last_ema
+        last_ema1 = emas_all[len(emas_all)-1]
+        last_ema2 = emas_all[len(emas_all)-2]
+        last_ema3 = emas_all[len(emas_all)-3]
         ticker_dict[ticker]["last_ema1"] = last_ema1
-        ticker_dict[ticker]["last_hma"] = last_hma
+        ticker_dict[ticker]["last_ema2"] = last_ema2
+        ticker_dict[ticker]["last_ema3"] = last_ema3
+
+        if last_ema1 > last_ema2:
+            bullish_ema1 = True
+        elif last_ema1 < last_ema2:
+            bullish_ema1 = False
+        else:
+            bullish_ema1 = None
+        ticker_dict[ticker]["bullish_ema1"] = bullish_ema1
+
+        if last_ema2 > last_ema3:
+            bullish_ema2 = True
+        elif last_ema2 < last_ema3:
+            bullish_ema2 = False
+        else:
+            bullish_ema2 = None
+        ticker_dict[ticker]["bullish_ema2"] = bullish_ema2
+
+        last_hma1 = hmas_all[len(hmas_all)-1]
+        last_hma2 = hmas_all[len(hmas_all)-2]
+        last_hma3 = hmas_all[len(hmas_all)-3]
         ticker_dict[ticker]["last_hma1"] = last_hma1
-        if last_ema > last_ema1:
-            bullish_ema = True
-        elif last_ema < last_ema1:
-            bullish_ema = False
+        ticker_dict[ticker]["last_hma2"] = last_hma2
+        ticker_dict[ticker]["last_hma3"] = last_hma3
+
+        if last_hma1 > last_hma2:
+            bullish_hma1 = True
+        elif last_hma1 < last_hma2:
+            bullish_hma1 = False
         else:
-            bullish_ema = None
-        ticker_dict[ticker]["bullish_ema"] = bullish_ema
-        if last_hma > last_hma1:
-            bullish_hma = True
-        elif last_hma < last_hma1:
-            bullish_hma = False
+            bullish_hma1 = None
+        ticker_dict[ticker]["bullish_hma1"] = bullish_hma1
+
+        if last_hma2 > last_hma3:
+            bullish_hma2 = True
+        elif last_hma2 < last_hma3:
+            bullish_hma2 = False
         else:
-            bullish_hma = None
-        ticker_dict[ticker]["bullish_hma"] = bullish_hma
+            bullish_hma2 = None
+        ticker_dict[ticker]["bullish_hma2"] = bullish_hma2
 
         # Get the relevant option symbol bot will purchase if entry criteria are met
 
@@ -506,7 +552,7 @@ def run():
             profit_exit = condition1 and condition2 and not condition3 and condition4
             condition5 = "C" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
             condition6 = "P" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
-            condition7 = ticker_dict[tickers[i]]["bullish_candle"]
+            condition7 = ticker_dict[tickers[i]]["bullish_candle1"]
             confirm_time = ticker_dict[tickers[i]]["confirm_time"]
             confirm_unit = ticker_dict[tickers[i]]["confirm_unit"]
             if "sec" in confirm_unit.lower():
@@ -536,7 +582,7 @@ def run():
                 entry = tickers_db.get(tickers[i])
                 entry["time_in_candle"] = curr_time
                 tickers_db.put(entry)
-            if not ticker_dict[tickers[i]]["doji_candle"]:
+            if not ticker_dict[tickers[i]]["doji_candle1"]:
                 call_exit = condition1 and condition2 and condition5 and not condition6 and condition7==False and condition8
                 put_exit = condition1 and condition2 and not condition5 and condition6 and condition7==True and condition8
             else:
@@ -608,36 +654,48 @@ def run():
         order_type = ticker_dict[tickers[i]]["order_type"]
         option_type = ticker_dict[tickers[i]]["option_type"]
         mid = ticker_dict[tickers[i]]["mid"]
+        if ticker_dict[tickers[i]]["use_close"]:
+            bullish_candle = ticker_dict[tickers[i]]["bullish_candle2"]
+            bullish_hma = ticker_dict[tickers[i]]["bullish_hma2"]
+            bullish_ema = ticker_dict[tickers[i]]["bullish_ema2"]
+            candle_wick_bottom = ticker_dict[tickers[i]]["candle_wick_bottom2"]
+            candle_wick_top = ticker_dict[tickers[i]]["candle_wick_top2"]
+        else:
+            bullish_candle = ticker_dict[tickers[i]]["bullish_candle1"]
+            bullish_hma = ticker_dict[tickers[i]]["bullish_hma1"]
+            bullish_ema = ticker_dict[tickers[i]]["bullish_ema1"]
+            candle_wick_bottom = ticker_dict[tickers[i]]["candle_wick_bottom1"]
+            candle_wick_top = ticker_dict[tickers[i]]["candle_wick_top1"]
         condition2 = tickers[i] not in tda_symbols_held
-        condition3 = ticker_dict[tickers[i]]["bullish_candle"]
+        condition3 = bullish_candle
         if ticker_dict[tickers[i]]["wick_requirement"] == "Any wick okay":
             condition4 = True
         elif ticker_dict[tickers[i]]["wick_requirement"] == "Can't have wick":
             if condition3==True:
-                if ticker_dict[tickers[i]]["candle_wick_bottom"] > 0:
+                if candle_wick_bottom > 0:
                     condition4 = False
                 else:
                     condition4 = True
             elif condition3==False:
-                if ticker_dict[tickers[i]]["candle_wick_top"] > 0:
+                if candle_wick_top > 0:
                     condition4 = False
                 else:
                     condition4 = True
         elif ticker_dict[tickers[i]]["wick_requirement"] == "Can have wick, but must be smaller":
             if condition3==True:
-                if ticker_dict[tickers[i]]["candle_wick_bottom"] > ticker_dict[tickers[i]]["candle_wick_top"]:
+                if candle_wick_bottom > candle_wick_top:
                     condition4 = False
                 else:
                     condition4 = True
             elif condition3==False:
-                if ticker_dict[tickers[i]]["candle_wick_top"] > ticker_dict[tickers[i]]["candle_wick_bottom"]:
+                if candle_wick_top > candle_wick_bottom:
                     condition4 = False
                 else:
                     condition4 = True
         if ticker_dict[tickers[i]]["indicator"] == "HMA":
-            condition5 = ticker_dict[tickers[i]]["bullish_hma"]
+            condition5 = bullish_hma
         elif ticker_dict[tickers[i]]["indicator"] == "EMA":
-            condition5 = ticker_dict[tickers[i]]["bullish_ema"]
+            condition5 = bullish_ema
         condition6 = tickers[i] not in recent_tickers
         bullish_entry = condition1 and condition2 and condition3==True and condition4 and condition5==True and condition6 and "calls" in option_type.lower()
         bearish_entry = condition1 and condition2 and condition3==False and condition4 and condition5==False and condition6 and "puts" in option_type.lower()

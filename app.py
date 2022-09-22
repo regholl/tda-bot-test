@@ -341,6 +341,64 @@ if auth:
             # if selected_side == ticker:
             if selected_ticker == ticker:
 
+                # TradingView Chart
+                
+                tv_chart = """
+                    <div class="tradingview-widget-container">
+                        <div id="tradingview_567ac"></div>
+                        <div class="tradingview-widget-copyright">
+                            <a href="https://www.tradingview.com/symbols/SPY/" rel="noopener" target="_blank">
+                                <span class="blue-text">SPY Chart</span>
+                            </a> by TradingView</div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                            new TradingView.widget(
+                            {
+                                "width": 1000,
+                                "height": 650,
+                                "symbol": "SPY",
+                                "interval": "D",
+                                "timezone": "America/Los_Angeles",
+                                "theme": "light",
+                                "style": "8",
+                                "locale": "en",
+                                "toolbar_bg": "#f1f3f6",
+                                "enable_publishing": false,
+                                "withdateranges": true,
+                                "hide_side_toolbar": false,
+                                "allow_symbol_change": true,
+                                "studies": [
+                                    "hullMA@tv-basicstudies",
+                                    "MAExp@tv-basicstudies"
+                                ],
+                                "container_id": "tradingview_ceea6"
+                            });
+                        </script>
+                    </div>
+                """
+                supported_intervals = [1, 3, 5, 15, 30, 45, 60, 120, 180, 240]
+                if frequencyType == "minute":
+                    interval = frequency
+                elif frequencyType == "hourly":
+                    interval = frequency * 60
+                elif frequencyType == "daily":
+                    interval = "D"
+                elif frequencyType == "weekly":
+                    interval = "W"
+                elif frequencyType == "monthly":
+                    interval = "M"
+                if type(interval) != str and interval not in supported_intervals:
+                    diffs = list(abs(np.array(supported_intervals) - interval))
+                    mini = min(diffs)
+                    idx1 = diffs.index(mini)
+                    interval = supported_intervals[idx1]
+                tv_chart = tv_chart.replace("D", str(interval))
+                tv_chart = tv_chart.replace("SPY", ticker)
+                # Style:8 is for Heikin Ashi
+                if tickers_info[idx]['candle_type'] != "Heikin Ashi":
+                    tv_chart = tv_chart.replace("8","1")
+                components.html(tv_chart, height = 650)
+
                 # Plotly chart
 
                 idx = tickers.index(ticker)
@@ -493,63 +551,6 @@ if auth:
                     ticksuffix=" "
                 )
                 st.plotly_chart(fig, use_container_width = True)
-
-                # TradingView Chart
-                tv_chart = """
-                    <div class="tradingview-widget-container">
-                        <div id="tradingview_567ac"></div>
-                        <div class="tradingview-widget-copyright">
-                            <a href="https://www.tradingview.com/symbols/SPY/" rel="noopener" target="_blank">
-                                <span class="blue-text">SPY Chart</span>
-                            </a> by TradingView</div>
-                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                        <script type="text/javascript">
-                            new TradingView.widget(
-                            {
-                                "width": 1000,
-                                "height": 650,
-                                "symbol": "SPY",
-                                "interval": "D",
-                                "timezone": "America/Los_Angeles",
-                                "theme": "light",
-                                "style": "8",
-                                "locale": "en",
-                                "toolbar_bg": "#f1f3f6",
-                                "enable_publishing": false,
-                                "withdateranges": true,
-                                "hide_side_toolbar": false,
-                                "allow_symbol_change": true,
-                                "studies": [
-                                    "hullMA@tv-basicstudies",
-                                    "MAExp@tv-basicstudies"
-                                ],
-                                "container_id": "tradingview_ceea6"
-                            });
-                        </script>
-                    </div>
-                """
-                supported_intervals = [1, 3, 5, 15, 30, 45, 60, 120, 180, 240]
-                if frequencyType == "minute":
-                    interval = frequency
-                elif frequencyType == "hourly":
-                    interval = frequency * 60
-                elif frequencyType == "daily":
-                    interval = "D"
-                elif frequencyType == "weekly":
-                    interval = "W"
-                elif frequencyType == "monthly":
-                    interval = "M"
-                if type(interval) != str and interval not in supported_intervals:
-                    diffs = list(abs(np.array(supported_intervals) - interval))
-                    mini = min(diffs)
-                    idx1 = diffs.index(mini)
-                    interval = supported_intervals[idx1]
-                tv_chart = tv_chart.replace("D", str(interval))
-                tv_chart = tv_chart.replace("SPY", ticker)
-                # Style:8 is for Heikin Ashi
-                if tickers_info[idx]['candle_type'] != "Heikin Ashi":
-                    tv_chart = tv_chart.replace("8","1")
-                components.html(tv_chart, height = 650)
 
                 # Form
                 values = tickers_db.get(ticker)

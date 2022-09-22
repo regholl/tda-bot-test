@@ -341,6 +341,16 @@ if auth:
             # if selected_side == ticker:
             if selected_ticker == ticker:
 
+                # Get ticker settings for market data from Deta
+
+                idx = tickers.index(ticker)
+
+                periodType = tickers_info[idx]['period_type']
+                period = tickers_info[idx]['period']
+                frequencyType = tickers_info[idx]['frequency_type']
+                frequency = tickers_info[idx]['frequency']
+                extended_hours = tickers_info[idx]['extended_hours']
+
                 # TradingView Chart
                 
                 tv_chart = """
@@ -399,22 +409,6 @@ if auth:
                     tv_chart = tv_chart.replace("8","1")
                 components.html(tv_chart, height = 650)
 
-                # Plotly chart
-
-                idx = tickers.index(ticker)
-                quote = get_quote_tda(ticker)
-                last = str(np.round(float(quote[ticker]['lastPrice']), 2))
-                if "." not in last:
-                    last = last + ".00"
-                if len(last.split(".")[1]) == 1:
-                    last = last + "0"
-
-                periodType = tickers_info[idx]['period_type']
-                period = tickers_info[idx]['period']
-                frequencyType = tickers_info[idx]['frequency_type']
-                frequency = tickers_info[idx]['frequency']
-                extended_hours = tickers_info[idx]['extended_hours']
-
                 # Shorten data period if able to increase speed
 
                 ema_window = int(tickers_info[idx]['ema_length'])
@@ -455,6 +449,17 @@ if auth:
                                     yr_req = 15
                                 else:
                                     yr_req = 20
+
+                # Get quote
+
+                quote = get_quote_tda(ticker)
+                last = str(np.round(float(quote[ticker]['lastPrice']), 2))
+                if "." not in last:
+                    last = last + ".00"
+                if len(last.split(".")[1]) == 1:
+                    last = last + "0"
+
+                # Download market data from TDA and put into dataframe
 
                 data = get_data_tda(ticker=ticker, periodType=periodType, period=period, frequencyType=frequencyType, frequency=frequency, extended_hours=extended_hours)
                 # print(data[-2:])
@@ -505,6 +510,9 @@ if auth:
                 df['high'] = tda_highs
                 df['low'] = tda_lows
                 df['close'] = tda_closes
+
+                # Create Plotly chart from TDA market data
+
                 fig = go.Figure()
                 blank = pd.Series(" ")
                 fig.add_trace(go.Candlestick(
@@ -535,7 +543,7 @@ if auth:
                         name = f'HMA {hma_window}'
                     ))
                 fig.update_layout(
-                    title = f'Chart: {ticker} ({last}), {frequency} {frequencyType}',
+                    title = f'Plotly chart: {ticker} ({last}), {frequency} {frequencyType}',
                     height = 700,
                     yaxis_title = 'Price',
                     xaxis_title = 'Datetime',
@@ -552,7 +560,8 @@ if auth:
                 )
                 st.plotly_chart(fig, use_container_width = True)
 
-                # Form
+                # Settings form
+
                 values = tickers_db.get(ticker)
                 values1 = checkpoints_db.get(ticker)
                 indicator_options = ["HMA", "EMA"]

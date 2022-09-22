@@ -569,7 +569,7 @@ if auth:
                 confirm_unit_options = ["second", "minute", "hour"]
                 frequency_type_options = ["minute", "daily", "weekly", "monthly"]
                 period_type_options = ["day", "month", "year", "ytd"]
-                wick_options = ["Any wick okay", "Can't have wick", "Can have wick, but must be smaller"]
+                wick_options = ["Any wick okay", "Can't have wick", "Smaller wick", "1/3 the size of candle body or smaller"]
                 option_type_options = ["Both calls and puts", "Calls only", "Puts only"]
                 order_type_options = ["MARKET", "LIMIT"]
                 stoploss_options = ["Fixed $", "Fixed %", "Trailing %", "None"]
@@ -624,7 +624,7 @@ if auth:
                             )
                             wick_requirement = st.selectbox(
                                 label = "Wick requirement",
-                                help = "Determines if the candle must have no wick or smaller wick in order to enter a trade",
+                                help = "Determines if the candle must have no wick, smaller wick, or 1/3 wick in order to enter a trade",
                                 options = wick_options,
                                 index = wick_options.index(values['wick_requirement'])
                             )

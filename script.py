@@ -84,6 +84,8 @@ def run():
         # Get quotes for underlying
 
         quote = get_quote_tda(ticker)
+        if ticker not in list(quote.keys()):
+            print(quote)
         last = np.round(float(quote[ticker]['lastPrice']), 2)
         bid = np.round(float(quote[ticker]['bidPrice']), 2)
         ask = np.round(float(quote[ticker]['lastPrice']), 2)
@@ -438,6 +440,8 @@ def run():
                     tickers_db.put(entry)
         elif trigger_trail_type == "None":
             entry = ""
+        else:
+            print("Unrecognized trigger_trail_type")
 
     # Activate checkpoints based on gainloss
 
@@ -510,10 +514,12 @@ def run():
     # Exit order
 
     for i in range(len(tickers)):
-        condition2 = tickers[i] in tda_symbols_held
+        ticker_dict[tickers[i]]["condition1"] = bool(condition1)
+        condition2x = tickers[i] in tda_symbols_held
+        ticker_dict[tickers[i]]["condition2x"] = bool(condition2x)
         order_type = ticker_dict[tickers[i]]["order_type"]
         mid = ticker_dict[tickers[i]]["mid"]
-        if condition2:
+        if condition2x:
             trail_pct = ticker_dict[tickers[i]]["trail_pct"]
             stoploss_pct = ticker_dict[tickers[i]]["stoploss_pct"]
             stoploss = ticker_dict[tickers[i]]["stoploss"]
@@ -531,28 +537,39 @@ def run():
                 drawdown_pct_high = 0
                 drawdown_pct_low = 0
             if ticker_dict[tickers[i]]["stoploss_type"] == "Trailing %":
-                condition3 = abs(drawdown_pct_high) > trail_pct
+                condition3x = abs(drawdown_pct_high) > trail_pct
             elif ticker_dict[tickers[i]]["stoploss_type"] == "Fixed %":
-                condition3 = abs(gainloss_pct) > stoploss_pct and gainloss_pct < 0
+                condition3x = abs(gainloss_pct) > stoploss_pct and gainloss_pct < 0
             elif ticker_dict[tickers[i]]["stoploss_type"] == "Fixed $":
-                condition3 = abs(gainloss) > stoploss and gainloss < 0
+                condition3x = abs(gainloss) > stoploss and gainloss < 0
             elif ticker_dict[tickers[i]]["stoploss_type"] == "None":
-                condition3 = False
+                condition3x = False
+            else:
+                print("Unrecognized stoploss_type")
+            ticker_dict[tickers[i]]["condition3x"] = bool(condition3x)
             take_profit = ticker_dict[tickers[i]]["take_profit"]
             take_profit_pct = ticker_dict[tickers[i]]["take_profit_pct"]
             if ticker_dict[tickers[i]]["take_profit_type"] == "Fixed %":
-                condition4 = gainloss_pct > take_profit_pct
+                condition4x = gainloss_pct > take_profit_pct
             elif ticker_dict[tickers[i]]["take_profit_type"] == "Fixed $":
-                condition4 = gainloss > take_profit
+                condition4x = gainloss > take_profit
             elif ticker_dict[tickers[i]]["take_profit_type"] == "None":
-                condition4 = False
+                condition4x = False
+            else:
+                print("Unrecognized take_profit_type")
+            ticker_dict[tickers[i]]["condition4x"] = bool(condition4x)
             exit_symbol = ticker_dict[tickers[i]]["option_symbol"]
             exit_quantity = ticker_dict[tickers[i]]["quantity"]
-            stoploss_exit = condition1 and condition2 and condition3 and not condition4
-            profit_exit = condition1 and condition2 and not condition3 and condition4
-            condition5 = "C" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
-            condition6 = "P" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
-            condition7 = ticker_dict[tickers[i]]["bullish_candle1"]
+            stoploss_exit = condition1 and condition2x and condition3x and not condition4x
+            ticker_dict[tickers[i]]["stoploss_exit"] = bool(stoploss_exit)
+            profit_exit = condition1 and condition2x and not condition3x and condition4x
+            ticker_dict[tickers[i]]["profit_exit"] = bool(profit_exit)
+            condition5x = "C" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
+            ticker_dict[tickers[i]]["condition5x"] = bool(condition5x)
+            condition6x = "P" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
+            ticker_dict[tickers[i]]["condition6x"] = bool(condition6x)
+            condition7x = ticker_dict[tickers[i]]["bullish_candle1"]
+            ticker_dict[tickers[i]]["condition7x"] = bool(condition7x)
             confirm_time = ticker_dict[tickers[i]]["confirm_time"]
             confirm_unit = ticker_dict[tickers[i]]["confirm_unit"]
             if "sec" in confirm_unit.lower():
@@ -566,13 +583,14 @@ def run():
             curr_time = dt.datetime.now(tz=utc)
             old_time = pd.Timestamp(tickers_db.get(tickers[i])['time_in_candle'], tz=utc)
             if confirm_time in [0, None]:
-                condition8 = True
+                condition8x = True
             elif old_time == 0:
-                condition8 = False
+                condition8x = False
                 print(f"Starting timer on {tickers[i]}")
             else:
-                condition8 = curr_time > old_time + dt.timedelta(seconds=confirm_time)
-            if condition8:
+                condition8x = curr_time > old_time + dt.timedelta(seconds=confirm_time)
+            ticker_dict[tickers[i]]["condition8x"] = bool(condition8x)
+            if condition8x:
                 ticker_dict[tickers[i]]["time_in_candle"] = 0
                 entry = tickers_db.get(tickers[i])
                 entry["time_in_candle"] = 0
@@ -583,14 +601,18 @@ def run():
                 entry["time_in_candle"] = curr_time
                 tickers_db.put(entry)
             if not ticker_dict[tickers[i]]["doji_candle1"]:
-                call_exit = condition1 and condition2 and condition5 and not condition6 and condition7==False and condition8
-                put_exit = condition1 and condition2 and not condition5 and condition6 and condition7==True and condition8
+                call_exit = condition1 and condition2x and condition5x and not condition6x and condition7x==False and condition8x
+                put_exit = condition1 and condition2x and not condition5x and condition6x and condition7x==True and condition8x
             else:
                 call_exit = False
                 put_exit = False
+            ticker_dict[tickers[i]]["call_exit"] = bool(call_exit)
+            ticker_dict[tickers[i]]["put_exit"] = bool(put_exit)
             any_exit = stoploss_exit or profit_exit or call_exit or put_exit
+            ticker_dict[tickers[i]]["any_exit"] = bool(any_exit)
             if any_exit:
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol, orderType=order_type, limit_price=mid)
+                print(json.dumps(ticker_dict, indent=4))
                 entry = tickers_db.get(tickers[i])
                 entry["triggered"] = False
                 tickers_db.put(entry)
@@ -634,19 +656,24 @@ def run():
                     exit_order = tda_submit_order("SELL_TO_CLOSE", qty, exit_symbol, orderType=order_type, limit_price=mid)
                     print(f"{qty} contracts of {tickers[i]} closed out due to checkpoint: \
                             exit_value {exit_value} > gainloss {gainloss}")
+                    print(json.dumps(ticker_dict, indent=4))
                     break
                 if gain_type == "Fixed $":
                     if gain_amount > gainloss:
                         exit_order = tda_submit_order("SELL_TO_CLOSE", qty2, exit_symbol, orderType=order_type, limit_price=mid)
                         print(f"{qty2} contracts of {tickers[i]} closed out due to checkpoint: \
                                 gain_amount {gain_amount} > gainloss {gainloss}")
+                        print(json.dumps(ticker_dict, indent=4))
                 elif gain_type == "Fixed %":
                     if gain_pct > gainloss_pct:
                         exit_order = tda_submit_order("SELL_TO_CLOSE", qty2, exit_symbol, orderType=order_type, limit_price=mid)
                         print(f"{qty2} contracts of {tickers[i]} closed out due to checkpoint: \
                                 gain_pct {gain_pct} > gainloss_pct {gainloss_pct}")
+                        print(json.dumps(ticker_dict, indent=4))
                 elif gain_type == "None":
-                    exit_order = ""        
+                    exit_order = ""
+                else:
+                    print("Unrecognized gain_type")     
 
     # Entry order
 
@@ -660,56 +687,83 @@ def run():
             bullish_ema = ticker_dict[tickers[i]]["bullish_ema2"]
             candle_wick_bottom = ticker_dict[tickers[i]]["candle_wick_bottom2"]
             candle_wick_top = ticker_dict[tickers[i]]["candle_wick_top2"]
+            candle_body = ticker_dict[tickers[i]]["candle_body2"]
         else:
             bullish_candle = ticker_dict[tickers[i]]["bullish_candle1"]
             bullish_hma = ticker_dict[tickers[i]]["bullish_hma1"]
             bullish_ema = ticker_dict[tickers[i]]["bullish_ema1"]
             candle_wick_bottom = ticker_dict[tickers[i]]["candle_wick_bottom1"]
             candle_wick_top = ticker_dict[tickers[i]]["candle_wick_top1"]
-        condition2 = tickers[i] not in tda_symbols_held
-        condition3 = bullish_candle
+            candle_body = ticker_dict[tickers[i]]["candle_body1"]
+        condition2e = tickers[i] not in tda_symbols_held
+        ticker_dict[tickers[i]]["condition2e"] = bool(condition2e)
+        condition3e = bullish_candle
+        ticker_dict[tickers[i]]["condition3e"] = bool(condition3e)
         if ticker_dict[tickers[i]]["wick_requirement"] == "Any wick okay":
-            condition4 = True
+            condition4e = True
         elif ticker_dict[tickers[i]]["wick_requirement"] == "Can't have wick":
-            if condition3==True:
+            if condition3e==True:
                 if candle_wick_bottom > 0:
-                    condition4 = False
+                    condition4e = False
                 else:
-                    condition4 = True
-            elif condition3==False:
+                    condition4e = True
+            elif condition3e==False:
                 if candle_wick_top > 0:
-                    condition4 = False
+                    condition4e = False
                 else:
-                    condition4 = True
-        elif ticker_dict[tickers[i]]["wick_requirement"] == "Can have wick, but must be smaller":
-            if condition3==True:
+                    condition4e = True
+        elif ticker_dict[tickers[i]]["wick_requirement"] == "Smaller wick":
+            if condition3e==True:
                 if candle_wick_bottom > candle_wick_top:
-                    condition4 = False
+                    condition4e = False
                 else:
-                    condition4 = True
-            elif condition3==False:
+                    condition4e = True
+            elif condition3e==False:
                 if candle_wick_top > candle_wick_bottom:
-                    condition4 = False
+                    condition4e = False
                 else:
-                    condition4 = True
+                    condition4e = True
+        elif ticker_dict[tickers[i]]["wick_requirement"] == "1/3 the size of candle body or smaller":
+            if condition3e==True:
+                if candle_wick_bottom > candle_body * (1/3):
+                    condition4e = False
+                else:
+                    condition4e = True
+            elif condition3e==False:
+                if candle_wick_top > candle_body * (1/3):
+                    condition4e = False
+                else:
+                    condition4e = True
+        else:
+            condition4e = True
+            print("Unrecognized wick requirement")
+        ticker_dict[tickers[i]]["condition4e"] = bool(condition4e)
         if ticker_dict[tickers[i]]["indicator"] == "HMA":
-            condition5 = bullish_hma
+            condition5e = bullish_hma
         elif ticker_dict[tickers[i]]["indicator"] == "EMA":
-            condition5 = bullish_ema
-        condition6 = tickers[i] not in recent_tickers
-        bullish_entry = condition1 and condition2 and condition3==True and condition4 and condition5==True and condition6 and "calls" in option_type.lower()
-        bearish_entry = condition1 and condition2 and condition3==False and condition4 and condition5==False and condition6 and "puts" in option_type.lower()
+            condition5e = bullish_ema
+        else:
+            print("Unrecognized indicator")
+        ticker_dict[tickers[i]]["condition5e"] = bool(condition5e)
+        condition6e = tickers[i] not in recent_tickers
+        ticker_dict[tickers[i]]["condition6e"] = bool(condition6e)
+        bullish_entry = condition1 and condition2e and condition3e==True and condition4e and condition5e==True and condition6e and "calls" in option_type.lower()
+        bearish_entry = condition1 and condition2e and condition3e==False and condition4e and condition5e==False and condition6e and "puts" in option_type.lower()
+        ticker_dict[tickers[i]]["bullish_entry"] = bool(bullish_entry)
+        ticker_dict[tickers[i]]["bearish_entry"] = bool(bearish_entry)
         contracts = ticker_dict[tickers[i]]["contracts"]
         if bullish_entry:
             entry_symbol = ticker_dict[tickers[i]]["chain"]["call"]
             # entry_symbol = entry_symbol.split("_")[0]
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bullish entry: Buying {contracts} contracts of {entry_symbol}")
+            print(json.dumps(ticker_dict, indent=4))
         if bearish_entry:
             entry_symbol = ticker_dict[tickers[i]]["chain"]["put"]
             # entry_symbol = entry_symbol.split("_")[0]
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bearish entry: Buying {contracts} contracts of {entry_symbol}")
+            print(json.dumps(ticker_dict, indent=4))
 
     # Print log
 
@@ -718,12 +772,12 @@ def run():
     time_total = np.round(time_end - time_start, 2)
     global log_count
     log_count += 1
-    if log_count == 1 or log_count % 30 == 0:
+    if log_count == 1 or log_count % 50 == 0:
         print_log = [
             ["Time", f" = {now}"],
             ["Market open", f" = {market_open}"],
-            ["Recent tickers",f" = {recent_tickers}"],
-            ["Execution Speed",f" = {time_total} seconds"],
+            ["Recent tickers", f" = {recent_tickers}"],
+            ["Execution Speed", f" = {time_total} seconds"],
             ["---------------", "---------------"]
         ]
         try:
@@ -734,7 +788,7 @@ def run():
             print(ticker_dict)
     else:
         print_log = [
-            ["Execution Speed",f" = {time_total} seconds"],
+            ["Execution Speed", f" = {time_total} seconds"],
         ]
 
     for item_list in print_log:

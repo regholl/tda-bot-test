@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import ta
 from tda import *
-#import threading
+import threading
 import time
 
 # Global variables
@@ -17,6 +17,7 @@ import time
 log_count = 0
 error_streak = 0
 bot_on_last = False
+cp = 10
 
 # Define the strategy function which will run a loop
 
@@ -50,9 +51,13 @@ def run():
     tickers_db = deta.Base("tickers_db")
     tickers_info = tickers_db.fetch().items
     tickers = [item["key"].upper() for item in tickers_info]
-    ticker_dict = {}
+    checkpoints_db = deta.Base("checkpoints_db")
+    checkpoints_info = checkpoints_db.fetch().items
+    ticker_dict, ticker_db_dict, checkpoint_db_dict = {}, {}, {}
     for i in range(len(tickers)):
         ticker_dict[tickers[i]] = tickers_info[i]
+        ticker_db_dict[tickers[i]] = tickers_info[i]
+        checkpoint_db_dict[tickers[i]] = checkpoints_info[i]
         ticker_dict[tickers[i]]["option_symbol"] = tickers[i]
         ticker_dict[tickers[i]]["average_price"] = 0
         ticker_dict[tickers[i]]["market_value"] = 0
@@ -61,8 +66,6 @@ def run():
         ticker_dict[tickers[i]]["quantity"] = 0
         ticker_dict[tickers[i]]["option_last"] = 0
 
-    checkpoints_db = deta.Base("checkpoints_db")
-    checkpoints_info = checkpoints_db.fetch().items
     for i in range(len(checkpoints_info)):
         key2 = checkpoints_info[i]['key']
         if key2 in tickers:
@@ -77,241 +80,12 @@ def run():
     closing_time = hours[1]
     #current_time = hours[2]
 
-    # Examine watchlist
-
-    for ticker in tickers:
-
-        # Get quotes for underlying
-
-        quote = get_quote_tda(ticker)
-        if ticker not in list(quote.keys()):
-            print(quote)
-        last = np.round(float(quote[ticker]['lastPrice']), 2)
-        bid = np.round(float(quote[ticker]['bidPrice']), 2)
-        ask = np.round(float(quote[ticker]['lastPrice']), 2)
-        mid = np.round((bid + ask) / 2, 2)
-        ticker_dict[ticker]["last"] = last
-        ticker_dict[ticker]["bid"] = bid
-        ticker_dict[ticker]["ask"] = ask
-        ticker_dict[ticker]["mid"] = mid
-
-        # Fetch ticker data settings from Deta
-
-        periodType = ticker_dict[ticker]['period_type']
-        period = int(ticker_dict[ticker]['period'])
-        frequencyType = ticker_dict[ticker]['frequency_type']
-        frequency = int(ticker_dict[ticker]['frequency'])
-        extended_hours = ticker_dict[ticker]['extended_hours']
-
-        # Shorten data period if able to increase speed
-
-        ema_window = int(ticker_dict[ticker]['ema_length'])
-        hma_window = int(ticker_dict[ticker]['hma_length'])
-        max_window = max(ema_window, hma_window)
-        min_in_day = 60 * 6.5
-        if frequencyType == "minute":
-            min_req = frequency * max_window
-            day_req = int(min_req / min_in_day) + 1
-            day_req = max(day_req, 1)
-            if day_req <= 10:
-                valid_periods_day = [1, 2, 3, 4, 5, 10]
-                if day_req in valid_periods_day:
-                    period = day_req
-                else:
-                    period = 10
-            else:
-                periodType = "month"
-                mon_req = int(day_req / 31) + 1
-                if mon_req <= 6:
-                    valid_periods_month = [1, 2, 3, 6]
-                    if mon_req in valid_periods_month:
-                        period = mon_req
-                    else:
-                        period = 6
-                else:
-                    periodType = "year"
-                    yr_req = int(mon_req / 12) + 1
-                    if yr_req <= 20:
-                        valid_periods_year = [1, 2, 3, 5, 10, 15, 20]
-                        if yr_req in valid_periods_year:
-                            period = yr_req
-                        elif 3 < yr_req < 5:
-                            yr_req = 5
-                        elif 5 < yr_req < 10:
-                            yr_req = 10
-                        elif 10 < yr_req < 15:
-                            yr_req = 15
-                        else:
-                            yr_req = 20
-
-        # Fetch data from TDA API
-
-        data = get_data_tda(ticker=ticker, periodType=periodType, period=period, frequencyType=frequencyType, frequency=frequency, extended_hours=extended_hours)
-        tda_opens = [item['open'] for item in data]
-        tda_highs = [item['high'] for item in data]
-        tda_lows = [item['low'] for item in data]
-        tda_closes = [item['close'] for item in data]
-
-        # Change to Heikin Ashi candles
-
-        ha_opens = [None] * len(tda_opens)
-        ha_highs = [None] * len(tda_highs)
-        ha_lows = [None] * len(tda_lows)
-        ha_closes = [None] * len(tda_closes)
-        ha_closes[0] = 0.25 * (tda_opens[0] + tda_highs[0] + tda_lows[0] + tda_closes[0])
-        ha_opens[0] = tda_opens[0]
-        ha_highs[0] = max(tda_highs[0], ha_opens[0], ha_closes[0])
-        ha_lows[0] = min(tda_lows[0], ha_opens[0], ha_closes[0])
-        i = 1
-        while i < len(ha_closes):
-            ha_opens[i] = 0.5 * (ha_opens[i-1] + ha_closes[i-1])
-            ha_highs[i] = max(tda_highs[i], ha_opens[i], tda_closes[i])
-            ha_lows[i] = min(tda_lows[i], ha_opens[i], tda_closes[i])
-            ha_closes[i] = 0.25 * (ha_opens[i] + tda_highs[i] + tda_lows[i] + tda_closes[i])
-            i += 1
-        if ticker_dict[ticker]["candle_type"] == "Heikin Ashi":
-            tda_opens = ha_opens
-            tda_highs = ha_highs
-            tda_lows = ha_lows
-            tda_closes = ha_closes
-
-        # Determine if candles and wicks are bullish or bearish
-
-        last_open1 = tda_opens[len(tda_opens)-1]
-        last_high1 = tda_highs[len(tda_highs)-1]
-        last_low1 = tda_lows[len(tda_lows)-1]
-        last_close1 = tda_closes[len(tda_closes)-1]
-        ticker_dict[ticker]["last_open1"] = last_open1
-        ticker_dict[ticker]["last_high1"] = last_high1
-        ticker_dict[ticker]["last_low1"] = last_low1
-        ticker_dict[ticker]["last_close1"] = last_close1
-
-        if last_close1 > last_open1:
-            bullish_candle1 = True
-        elif last_close1 < last_open1:
-            bullish_candle1 = False
-        else:
-            bullish_candle1 = None
-
-        ticker_dict[ticker]["bullish_candle1"] = bullish_candle1
-        candle_body1 = abs(last_close1 - last_open1)
-        candle_wick_top1 = last_high1 - max(last_close1, last_open1)
-        candle_wick_bottom1 = min(last_close1, last_high1) - last_low1
-
-        if candle_wick_top1 + candle_wick_bottom1 > candle_body1 * 2:
-            doji_candle1 = True
-        else:
-            doji_candle1 = False
-
-        ticker_dict[ticker]["candle_body1"] = candle_body1
-        ticker_dict[ticker]["candle_wick_top1"] = candle_wick_top1
-        ticker_dict[ticker]["candle_wick_bottom1"] = candle_wick_bottom1
-        ticker_dict[ticker]["doji_candle1"] = doji_candle1
-
-        last_open2 = tda_opens[len(tda_opens)-2]
-        last_high2 = tda_highs[len(tda_highs)-2]
-        last_low2 = tda_lows[len(tda_lows)-2]
-        last_close2 = tda_closes[len(tda_closes)-2]
-        ticker_dict[ticker]["last_open2"] = last_open2
-        ticker_dict[ticker]["last_high2"] = last_high2
-        ticker_dict[ticker]["last_low2"] = last_low2
-        ticker_dict[ticker]["last_close2"] = last_close2
-
-        if last_close2 > last_open2:
-            bullish_candle2 = True
-        elif last_close2 < last_open2:
-            bullish_candle2 = False
-        else:
-            bullish_candle2 = None
-
-        ticker_dict[ticker]["bullish_candle2"] = bullish_candle2
-        candle_body2 = abs(last_close2 - last_open2)
-        candle_wick_top2 = last_high2 - max(last_close2, last_open2)
-        candle_wick_bottom2 = min(last_close2, last_high2) - last_low2
-
-        if candle_wick_top2 + candle_wick_bottom2 > candle_body2:
-            doji_candle2 = True
-        else:
-            doji_candle2 = False
-
-        ticker_dict[ticker]["candle_body2"] = candle_body2
-        ticker_dict[ticker]["candle_wick_top2"] = candle_wick_top2
-        ticker_dict[ticker]["candle_wick_bottom2"] = candle_wick_bottom2
-        ticker_dict[ticker]["doji_candle2"] = doji_candle2
-
-        # Create dataframe and fill with market data
-
-        df = pd.DataFrame()
-        df['open'] = tda_opens
-        df['high'] = tda_highs
-        df['low'] = tda_lows
-        df['close'] = tda_closes
-
-        # Calculate technical indicators
-
-        emas_all = np.round(ta.trend.ema_indicator(pd.to_numeric(df['close']), window=ema_window), 4)
-        ema = emas_all[len(emas_all)-1]
-        ticker_dict[ticker]["ema"] = ema
-
-        hma1 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=int(hma_window/2))
-        hma2 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=hma_window)
-        hma_raw = (2 * hma1) - hma2
-        hmas_all = np.round(ta.trend.wma_indicator(hma_raw, window=math.floor(math.sqrt(hma_window))), 4)
-        hma = hmas_all[len(hmas_all)-1]
-        ticker_dict[ticker]["hma"] = hma
-
-        # Determine if moving averages are bullish or bearish
-
-        last_ema1 = emas_all[len(emas_all)-1]
-        last_ema2 = emas_all[len(emas_all)-2]
-        last_ema3 = emas_all[len(emas_all)-3]
-        ticker_dict[ticker]["last_ema1"] = last_ema1
-        ticker_dict[ticker]["last_ema2"] = last_ema2
-        ticker_dict[ticker]["last_ema3"] = last_ema3
-
-        if last_ema1 > last_ema2:
-            bullish_ema1 = True
-        elif last_ema1 < last_ema2:
-            bullish_ema1 = False
-        else:
-            bullish_ema1 = None
-        ticker_dict[ticker]["bullish_ema1"] = bullish_ema1
-
-        if last_ema2 > last_ema3:
-            bullish_ema2 = True
-        elif last_ema2 < last_ema3:
-            bullish_ema2 = False
-        else:
-            bullish_ema2 = None
-        ticker_dict[ticker]["bullish_ema2"] = bullish_ema2
-
-        last_hma1 = hmas_all[len(hmas_all)-1]
-        last_hma2 = hmas_all[len(hmas_all)-2]
-        last_hma3 = hmas_all[len(hmas_all)-3]
-        ticker_dict[ticker]["last_hma1"] = last_hma1
-        ticker_dict[ticker]["last_hma2"] = last_hma2
-        ticker_dict[ticker]["last_hma3"] = last_hma3
-
-        if last_hma1 > last_hma2:
-            bullish_hma1 = True
-        elif last_hma1 < last_hma2:
-            bullish_hma1 = False
-        else:
-            bullish_hma1 = None
-        ticker_dict[ticker]["bullish_hma1"] = bullish_hma1
-
-        if last_hma2 > last_hma3:
-            bullish_hma2 = True
-        elif last_hma2 < last_hma3:
-            bullish_hma2 = False
-        else:
-            bullish_hma2 = None
-        ticker_dict[ticker]["bullish_hma2"] = bullish_hma2
-
-        # Get the relevant option symbol bot will purchase if entry criteria are met
-
-        chain = get_chain_tda(ticker)
-        ticker_dict[ticker]["chain"] = chain
+    # Calculate time
+    
+    current_time = dt.datetime.now(tz=local_timezone)
+    minutes_until_close = np.round((closing_time - current_time).total_seconds() / 60, 2)
+    # condition1 = market_open
+    condition1 = 0 < minutes_until_close < 450
 
     # Get positions from TDA API
 
@@ -352,9 +126,255 @@ def run():
             ticker_dict[symb]["quantity"] = tda_quantities[i]
             ticker_dict[symb]["option_last"] = last_option
 
-    # Calculate costbasis and gainloss from quotes and average prices
+    # Get orders from TDA API
 
-    for i in range(len(tickers)):
+    tda_orders = get_orders2_tda()
+    time_now = dt.datetime.now(utc)
+    recent_tickers = []
+
+    # Define giant function, will later iterate over each ticker using multi-threading for extra speed
+
+    def strategy(tickers, i):
+
+        # Get database entry
+
+        entry = ticker_db_dict[tickers[i]]
+        values1 = checkpoint_db_dict[tickers[i]]
+    
+        # Get quotes for underlying
+
+        quote = get_quote_tda(tickers[i])
+        if tickers[i] not in list(quote.keys()):
+            print(quote)
+        last = np.round(float(quote[tickers[i]]['lastPrice']), 2)
+        bid = np.round(float(quote[tickers[i]]['bidPrice']), 2)
+        ask = np.round(float(quote[tickers[i]]['lastPrice']), 2)
+        mid = np.round((bid + ask) / 2, 2)
+        ticker_dict[tickers[i]]["last"] = last
+        ticker_dict[tickers[i]]["bid"] = bid
+        ticker_dict[tickers[i]]["ask"] = ask
+        ticker_dict[tickers[i]]["mid"] = mid
+
+        # Fetch ticker data settings from Deta
+
+        periodType = ticker_dict[tickers[i]]['period_type']
+        period = int(ticker_dict[tickers[i]]['period'])
+        frequencyType = ticker_dict[tickers[i]]['frequency_type']
+        frequency = int(ticker_dict[tickers[i]]['frequency'])
+        extended_hours = ticker_dict[tickers[i]]['extended_hours']
+
+        # Shorten data period if able to increase speed
+
+        ema_window = int(ticker_dict[tickers[i]]['ema_length'])
+        hma_window = int(ticker_dict[tickers[i]]['hma_length'])
+        max_window = max(ema_window, hma_window)
+        min_in_day = 60 * 6.5
+        if frequencyType == "minute":
+            min_req = frequency * max_window
+            day_req = int(min_req / min_in_day) + 1
+            day_req = max(day_req, 2)
+            if day_req <= 10:
+                valid_periods_day = [1, 2, 3, 4, 5, 10]
+                if day_req in valid_periods_day:
+                    period = day_req
+                else:
+                    period = 10
+            else:
+                periodType = "month"
+                mon_req = int(day_req / 31) + 1
+                if mon_req <= 6:
+                    valid_periods_month = [1, 2, 3, 6]
+                    if mon_req in valid_periods_month:
+                        period = mon_req
+                    else:
+                        period = 6
+                else:
+                    periodType = "year"
+                    yr_req = int(mon_req / 12) + 1
+                    if yr_req <= 20:
+                        valid_periods_year = [1, 2, 3, 5, 10, 15, 20]
+                        if yr_req in valid_periods_year:
+                            period = yr_req
+                        elif 3 < yr_req < 5:
+                            yr_req = 5
+                        elif 5 < yr_req < 10:
+                            yr_req = 10
+                        elif 10 < yr_req < 15:
+                            yr_req = 15
+                        else:
+                            yr_req = 20
+
+        # Fetch data from TDA API
+
+        data = get_data_tda(ticker=tickers[i], periodType=periodType, period=period, frequencyType=frequencyType, frequency=frequency, extended_hours=extended_hours)
+        tda_opens = [item['open'] for item in data]
+        tda_highs = [item['high'] for item in data]
+        tda_lows = [item['low'] for item in data]
+        tda_closes = [item['close'] for item in data]
+
+        # Change to Heikin Ashi candles
+
+        ha_opens = [None] * len(tda_opens)
+        ha_highs = [None] * len(tda_highs)
+        ha_lows = [None] * len(tda_lows)
+        ha_closes = [None] * len(tda_closes)
+        ha_closes[0] = 0.25 * (tda_opens[0] + tda_highs[0] + tda_lows[0] + tda_closes[0])
+        ha_opens[0] = tda_opens[0]
+        ha_highs[0] = max(tda_highs[0], ha_opens[0], ha_closes[0])
+        ha_lows[0] = min(tda_lows[0], ha_opens[0], ha_closes[0])
+        k = 1
+        while k < len(ha_closes):
+            ha_opens[k] = 0.5 * (ha_opens[k-1] + ha_closes[k-1])
+            ha_highs[k] = max(tda_highs[k], ha_opens[k], tda_closes[k])
+            ha_lows[k] = min(tda_lows[k], ha_opens[k], tda_closes[k])
+            ha_closes[k] = 0.25 * (ha_opens[k] + tda_highs[k] + tda_lows[k] + tda_closes[k])
+            k += 1
+        if ticker_dict[tickers[i]]["candle_type"] == "Heikin Ashi":
+            tda_opens = ha_opens
+            tda_highs = ha_highs
+            tda_lows = ha_lows
+            tda_closes = ha_closes
+
+        # Determine if candles and wicks are bullish or bearish
+
+        last_open1 = tda_opens[len(tda_opens)-1]
+        last_high1 = tda_highs[len(tda_highs)-1]
+        last_low1 = tda_lows[len(tda_lows)-1]
+        last_close1 = tda_closes[len(tda_closes)-1]
+        ticker_dict[tickers[i]]["last_open1"] = last_open1
+        ticker_dict[tickers[i]]["last_high1"] = last_high1
+        ticker_dict[tickers[i]]["last_low1"] = last_low1
+        ticker_dict[tickers[i]]["last_close1"] = last_close1
+
+        if last_close1 > last_open1:
+            bullish_candle1 = True
+        elif last_close1 < last_open1:
+            bullish_candle1 = False
+        else:
+            bullish_candle1 = None
+
+        ticker_dict[tickers[i]]["bullish_candle1"] = bullish_candle1
+        candle_body1 = abs(last_close1 - last_open1)
+        candle_wick_top1 = last_high1 - max(last_close1, last_open1)
+        candle_wick_bottom1 = min(last_close1, last_high1) - last_low1
+
+        if candle_wick_top1 + candle_wick_bottom1 > candle_body1 * 2:
+            doji_candle1 = True
+        else:
+            doji_candle1 = False
+
+        ticker_dict[tickers[i]]["candle_body1"] = candle_body1
+        ticker_dict[tickers[i]]["candle_wick_top1"] = candle_wick_top1
+        ticker_dict[tickers[i]]["candle_wick_bottom1"] = candle_wick_bottom1
+        ticker_dict[tickers[i]]["doji_candle1"] = doji_candle1
+
+        last_open2 = tda_opens[len(tda_opens)-2]
+        last_high2 = tda_highs[len(tda_highs)-2]
+        last_low2 = tda_lows[len(tda_lows)-2]
+        last_close2 = tda_closes[len(tda_closes)-2]
+        ticker_dict[tickers[i]]["last_open2"] = last_open2
+        ticker_dict[tickers[i]]["last_high2"] = last_high2
+        ticker_dict[tickers[i]]["last_low2"] = last_low2
+        ticker_dict[tickers[i]]["last_close2"] = last_close2
+
+        if last_close2 > last_open2:
+            bullish_candle2 = True
+        elif last_close2 < last_open2:
+            bullish_candle2 = False
+        else:
+            bullish_candle2 = None
+
+        ticker_dict[tickers[i]]["bullish_candle2"] = bullish_candle2
+        candle_body2 = abs(last_close2 - last_open2)
+        candle_wick_top2 = last_high2 - max(last_close2, last_open2)
+        candle_wick_bottom2 = min(last_close2, last_high2) - last_low2
+
+        if candle_wick_top2 + candle_wick_bottom2 > candle_body2:
+            doji_candle2 = True
+        else:
+            doji_candle2 = False
+
+        ticker_dict[tickers[i]]["candle_body2"] = candle_body2
+        ticker_dict[tickers[i]]["candle_wick_top2"] = candle_wick_top2
+        ticker_dict[tickers[i]]["candle_wick_bottom2"] = candle_wick_bottom2
+        ticker_dict[tickers[i]]["doji_candle2"] = doji_candle2
+
+        # Create dataframe and fill with market data
+
+        df = pd.DataFrame()
+        df['open'] = tda_opens
+        df['high'] = tda_highs
+        df['low'] = tda_lows
+        df['close'] = tda_closes
+
+        # Calculate technical indicators
+
+        emas_all = np.round(ta.trend.ema_indicator(pd.to_numeric(df['close']), window=ema_window), 4)
+        ema = emas_all[len(emas_all)-1]
+        ticker_dict[tickers[i]]["ema"] = ema
+
+        hma1 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=int(hma_window/2))
+        hma2 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=hma_window)
+        hma_raw = (2 * hma1) - hma2
+        hmas_all = np.round(ta.trend.wma_indicator(hma_raw, window=math.floor(math.sqrt(hma_window))), 4)
+        hma = hmas_all[len(hmas_all)-1]
+        ticker_dict[tickers[i]]["hma"] = hma
+
+        # Determine if moving averages are bullish or bearish
+
+        last_ema1 = emas_all[len(emas_all)-1]
+        last_ema2 = emas_all[len(emas_all)-2]
+        last_ema3 = emas_all[len(emas_all)-3]
+        ticker_dict[tickers[i]]["last_ema1"] = last_ema1
+        ticker_dict[tickers[i]]["last_ema2"] = last_ema2
+        ticker_dict[tickers[i]]["last_ema3"] = last_ema3
+
+        if last_ema1 > last_ema2:
+            bullish_ema1 = True
+        elif last_ema1 < last_ema2:
+            bullish_ema1 = False
+        else:
+            bullish_ema1 = None
+        ticker_dict[tickers[i]]["bullish_ema1"] = bullish_ema1
+
+        if last_ema2 > last_ema3:
+            bullish_ema2 = True
+        elif last_ema2 < last_ema3:
+            bullish_ema2 = False
+        else:
+            bullish_ema2 = None
+        ticker_dict[tickers[i]]["bullish_ema2"] = bullish_ema2
+
+        last_hma1 = hmas_all[len(hmas_all)-1]
+        last_hma2 = hmas_all[len(hmas_all)-2]
+        last_hma3 = hmas_all[len(hmas_all)-3]
+        ticker_dict[tickers[i]]["last_hma1"] = last_hma1
+        ticker_dict[tickers[i]]["last_hma2"] = last_hma2
+        ticker_dict[tickers[i]]["last_hma3"] = last_hma3
+
+        if last_hma1 > last_hma2:
+            bullish_hma1 = True
+        elif last_hma1 < last_hma2:
+            bullish_hma1 = False
+        else:
+            bullish_hma1 = None
+        ticker_dict[tickers[i]]["bullish_hma1"] = bullish_hma1
+
+        if last_hma2 > last_hma3:
+            bullish_hma2 = True
+        elif last_hma2 < last_hma3:
+            bullish_hma2 = False
+        else:
+            bullish_hma2 = None
+        ticker_dict[tickers[i]]["bullish_hma2"] = bullish_hma2
+
+        # Get the relevant option symbol bot will purchase if entry criteria are met
+
+        chain = get_chain_tda(tickers[i])
+        ticker_dict[tickers[i]]["chain"] = chain
+
+        # Calculate costbasis and gainloss from quotes and average prices
+
         if tickers[i] in tda_symbols_held:
             idx = tda_symbols_held.index(tickers[i])
             if tda_long_shares[idx] > 0:
@@ -384,9 +404,8 @@ def run():
         ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
         ticker_dict[tickers[i]]["gainloss_pct"] = tda_gainloss_pct
 
-    # Adjust costbasis based on trigger trails
+        # Adjust costbasis based on trigger trails
 
-    for i in range(len(tickers)):
         trigger_trail_type = ticker_dict[tickers[i]]["trigger_trail_type"]
         trigger_trail = ticker_dict[tickers[i]]["trigger_trail"]
         trigger_trail_pct = ticker_dict[tickers[i]]["trigger_trail_pct"]
@@ -399,12 +418,10 @@ def run():
                     print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered on ticker {tickers[i]} due to \
                             gainloss {tda_gainloss} > trigger_trail {trigger_trail}")
                     ticker_dict[tickers[i]]["triggered"] = True
-                    entry = tickers_db.get(tickers[i])
                     entry["triggered"] = True
                     # entry["costbasis"] = tda_costbasis
                     # entry["stoploss_type"] = "Trailing %"
                     # entry["trail_pct"] = trigger_trail_trail_pct
-                    tickers_db.put(entry)
                 ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
@@ -412,9 +429,7 @@ def run():
                 if ticker_dict[tickers[i]]["triggered"] == True:
                     print(f"Ticker {tickers[i]} not found, triggered set to False")
                     ticker_dict[tickers[i]]["triggered"] = False
-                    entry = tickers_db.get(tickers[i])
                     entry["triggered"] = False
-                    tickers_db.put(entry)
         elif trigger_trail_type == "Fixed %":
             if (tda_gainloss_pct > trigger_trail_pct or triggered == True) and tickers[i] in tda_symbols_held:
                 tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
@@ -422,12 +437,10 @@ def run():
                     print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered on ticker {tickers[i]} due to \
                             gainloss of {tda_gainloss_pct}% > {trigger_trail_pct}%")
                     ticker_dict[tickers[i]]["triggered"] = True
-                    entry = tickers_db.get(tickers[i])
                     entry["triggered"] = True
                     # entry["costbasis"] = tda_costbasis
                     # entry["stoploss_type"] = "Trailing %"
                     # entry["trail_pct"] = trigger_trail_trail_pct
-                    tickers_db.put(entry)
                 ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
@@ -435,19 +448,14 @@ def run():
                 if ticker_dict[tickers[i]]["triggered"] == True:
                     print(f"Ticker {tickers[i]} not found, triggered set to False")
                     ticker_dict[tickers[i]]["triggered"] = False
-                    entry = tickers_db.get(tickers[i])
                     entry["triggered"] = False
-                    tickers_db.put(entry)
         elif trigger_trail_type == "None":
-            entry = ""
+            entry = entry
         else:
             print("Unrecognized trigger_trail_type")
 
-    # Activate checkpoints based on gainloss
+        # Activate checkpoints based on gainloss
 
-    cp = 10
-    for i in range(len(tickers)):
-        values1 = checkpoints_db.get(tickers[i])
         for j in range(cp):
             if tickers[i] in tda_symbols_held and ticker_dict[tickers[i]][f"checkpoint_on{j}"]:
                 if ticker_dict[tickers[i]]["gainloss"] > ticker_dict[tickers[i]][f"activation_value{j}"] \
@@ -458,11 +466,9 @@ def run():
                 if ticker_dict[tickers[i]][f"activated{j}"] != False:
                     ticker_dict[tickers[i]][f"activated{j}"] = False
                     values1[f"activated{j}"] = False
-        checkpoints_db.put(values1)
 
-    # Update max and min so drawdown can be tracked and trailing stops can execute
+        # Update max and min so drawdown can be tracked and trailing stops can execute
 
-    for i in range(len(tickers)):
         if tickers[i] in tda_symbols_held:
             maxi = max(ticker_dict[tickers[i]]["max"], ticker_dict[tickers[i]]["market_value"], ticker_dict[tickers[i]]["costbasis"])
             mini = min(ticker_dict[tickers[i]]["market_value"], ticker_dict[tickers[i]]["costbasis"])
@@ -472,22 +478,14 @@ def run():
             maxi = 0
             mini = 0
         if maxi != ticker_dict[tickers[i]]["max"]:
-            entry = tickers_db.get(tickers[i])
             entry["max"] = maxi
             ticker_dict[tickers[i]]["max"] = maxi
-            tickers_db.put(entry)
         if mini != ticker_dict[tickers[i]]["min"]:
-            entry = tickers_db.get(tickers[i])
             entry["min"] = mini
             ticker_dict[tickers[i]]["min"] = mini
-            tickers_db.put(entry)
         
-    # Get recent orders from TDA API, so we can determine recent tickers and implement a pause period on them
+        # Get recent orders from TDA API, so we can determine recent tickers and implement a pause period on them
 
-    tda_orders = get_orders2_tda()
-    time_now = dt.datetime.now(utc)
-    recent_tickers = []
-    for i in range(len(tickers)):
         pause_unit = ticker_dict[tickers[i]]["pause_unit"]
         pause_time = ticker_dict[tickers[i]]["pause_time"]
         if "sec" in pause_unit.lower():
@@ -503,17 +501,9 @@ def run():
         recent_tickers1 = [ticker.split("_")[0] for ticker in recent_opt_tickers]
         if tickers[i] in recent_tickers1:
             recent_tickers.append(tickers[i])
-    
-    # Calculate time
-    
-    current_time = dt.datetime.now(tz=local_timezone)
-    minutes_until_close = np.round((closing_time - current_time).total_seconds() / 60, 2)
-    # condition1 = market_open
-    condition1 = 0 < minutes_until_close < 450
 
-    # Exit order
+        # Exit order
 
-    for i in range(len(tickers)):
         ticker_dict[tickers[i]]["condition1"] = bool(condition1)
         condition2x = tickers[i] in tda_symbols_held
         ticker_dict[tickers[i]]["condition2x"] = bool(condition2x)
@@ -581,7 +571,7 @@ def run():
             else:
                 confirm_time = confirm_time
             curr_time = dt.datetime.now(tz=utc)
-            old_time = pd.Timestamp(tickers_db.get(tickers[i])['time_in_candle'], tz=utc)
+            old_time = pd.Timestamp(ticker_db_dict[tickers[i]]['time_in_candle'], tz=utc)
             if confirm_time in [0, None]:
                 condition8x = True
             elif old_time == 0:
@@ -592,14 +582,10 @@ def run():
             ticker_dict[tickers[i]]["condition8x"] = bool(condition8x)
             if condition8x:
                 ticker_dict[tickers[i]]["time_in_candle"] = 0
-                entry = tickers_db.get(tickers[i])
                 entry["time_in_candle"] = 0
-                tickers_db.put(entry)
             else:
                 ticker_dict[tickers[i]]["time_in_candle"] = curr_time
-                entry = tickers_db.get(tickers[i])
                 entry["time_in_candle"] = curr_time
-                tickers_db.put(entry)
             # if not ticker_dict[tickers[i]]["doji_candle1"]:
             call_exit = condition1 and condition2x and condition5x and not condition6x and condition7x==False and condition8x
             put_exit = condition1 and condition2x and not condition5x and condition6x and condition7x==True and condition8x
@@ -613,9 +599,7 @@ def run():
             if any_exit:
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol, orderType=order_type, limit_price=mid)
                 print(json.dumps(ticker_dict, indent=4))
-                entry = tickers_db.get(tickers[i])
                 entry["triggered"] = False
-                tickers_db.put(entry)
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
                     if ticker_dict[tickers[i]]["stoploss_type"] == "Trailing %":
@@ -637,9 +621,8 @@ def run():
                     exit_log = exit_log + f" bullish candle while holding put"
                 print(exit_log)
 
-    # Checkpoint exits
+        # Checkpoint exits
 
-    for i in range(len(tickers)):
         gainloss = ticker_dict[tickers[i]]["gainloss"]
         gainloss_pct = ticker_dict[tickers[i]]["gainloss_pct"]
         exit_symbol = ticker_dict[tickers[i]]["option_symbol"]
@@ -675,9 +658,8 @@ def run():
                 else:
                     print("Unrecognized gain_type")     
 
-    # Entry order
+        # Entry order
 
-    for i in range(len(tickers)):
         order_type = ticker_dict[tickers[i]]["order_type"]
         option_type = ticker_dict[tickers[i]]["option_type"]
         mid = ticker_dict[tickers[i]]["mid"]
@@ -764,6 +746,25 @@ def run():
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bearish entry: Buying {contracts} contracts of {entry_symbol}")
             print(json.dumps(ticker_dict, indent=4))
+
+        # Update dictionary
+
+        ticker_db_dict[tickers[i]] = entry
+        checkpoint_db_dict[tickers[i]] = values1
+
+        # End function
+
+    # Multi-thread and update database
+
+    threads = []       
+    for i in range(len(tickers)): 
+        tickers_db.put(ticker_db_dict[tickers[i]])
+        checkpoints_db.put(checkpoint_db_dict[tickers[i]])                                                   
+        t = threading.Thread(target=strategy, args=(tickers,i)) 
+        threads.append(t)
+        threads[-1].start()                                     
+    for t in threads:
+        t.join()                                                                          
 
     # Print log
 

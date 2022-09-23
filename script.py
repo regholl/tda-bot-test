@@ -813,4 +813,4 @@ while True:
             pass
     else:
         run()
-    time.sleep(1)
+    time.sleep(0.01)

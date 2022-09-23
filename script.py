@@ -112,7 +112,7 @@ def run():
         if frequencyType == "minute":
             min_req = frequency * max_window
             day_req = int(min_req / min_in_day) + 1
-            day_req = max(day_req, 2)
+            day_req = max(day_req, 1)
             if day_req <= 10:
                 valid_periods_day = [1, 2, 3, 4, 5, 10]
                 if day_req in valid_periods_day:
@@ -198,7 +198,7 @@ def run():
         candle_wick_top1 = last_high1 - max(last_close1, last_open1)
         candle_wick_bottom1 = min(last_close1, last_high1) - last_low1
 
-        if candle_wick_top1 + candle_wick_bottom1 > candle_body1:
+        if candle_wick_top1 + candle_wick_bottom1 > candle_body1 * 2:
             doji_candle1 = True
         else:
             doji_candle1 = False
@@ -249,14 +249,14 @@ def run():
 
         # Calculate technical indicators
 
-        emas_all = np.round(ta.trend.ema_indicator(pd.to_numeric(df['close']), window=ema_window), 2)
+        emas_all = np.round(ta.trend.ema_indicator(pd.to_numeric(df['close']), window=ema_window), 4)
         ema = emas_all[len(emas_all)-1]
         ticker_dict[ticker]["ema"] = ema
 
         hma1 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=int(hma_window/2))
         hma2 = ta.trend.wma_indicator(pd.to_numeric(df['close']), window=hma_window)
         hma_raw = (2 * hma1) - hma2
-        hmas_all = np.round(ta.trend.wma_indicator(hma_raw, window=math.floor(math.sqrt(hma_window))), 2)
+        hmas_all = np.round(ta.trend.wma_indicator(hma_raw, window=math.floor(math.sqrt(hma_window))), 4)
         hma = hmas_all[len(hmas_all)-1]
         ticker_dict[ticker]["hma"] = hma
 
@@ -600,12 +600,12 @@ def run():
                 entry = tickers_db.get(tickers[i])
                 entry["time_in_candle"] = curr_time
                 tickers_db.put(entry)
-            if not ticker_dict[tickers[i]]["doji_candle1"]:
-                call_exit = condition1 and condition2x and condition5x and not condition6x and condition7x==False and condition8x
-                put_exit = condition1 and condition2x and not condition5x and condition6x and condition7x==True and condition8x
-            else:
-                call_exit = False
-                put_exit = False
+            # if not ticker_dict[tickers[i]]["doji_candle1"]:
+            call_exit = condition1 and condition2x and condition5x and not condition6x and condition7x==False and condition8x
+            put_exit = condition1 and condition2x and not condition5x and condition6x and condition7x==True and condition8x
+            # else:
+            #     call_exit = False
+            #     put_exit = False
             ticker_dict[tickers[i]]["call_exit"] = bool(call_exit)
             ticker_dict[tickers[i]]["put_exit"] = bool(put_exit)
             any_exit = stoploss_exit or profit_exit or call_exit or put_exit

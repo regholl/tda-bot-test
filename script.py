@@ -57,7 +57,7 @@ def run():
     ticker_dict, ticker_db_dict, checkpoint_db_dict = {}, {}, {}
     for i in range(len(tickers)):
         ticker_dict[tickers[i]] = tickers_info[i]
-        ticker_db_dict[tickers[i]] = tickers_info[i]
+        ticker_db_dict[tickers[i]] = tickers_info[i].copy()
         checkpoint_db_dict[tickers[i]] = checkpoints_info[i]
         ticker_dict[tickers[i]]["option_symbol"] = tickers[i]
         ticker_dict[tickers[i]]["average_price"] = 0

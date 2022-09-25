@@ -53,6 +53,7 @@ def run():
     tickers = [item["key"].upper() for item in tickers_info]
     checkpoints_db = deta.Base("checkpoints_db")
     checkpoints_info = checkpoints_db.fetch().items
+    indicator_options = ["HMA", "EMA", "Candles"]
     ticker_dict, ticker_db_dict, checkpoint_db_dict = {}, {}, {}
     for i in range(len(tickers)):
         ticker_dict[tickers[i]] = tickers_info[i]
@@ -508,6 +509,7 @@ def run():
         condition2x = tickers[i] in tda_symbols_held
         ticker_dict[tickers[i]]["condition2x"] = bool(condition2x)
         order_type = ticker_dict[tickers[i]]["order_type"]
+        indicator_exit = ticker_dict[tickers[i]]["indicator_exit"]
         mid = ticker_dict[tickers[i]]["mid"]
         if condition2x:
             trail_pct = ticker_dict[tickers[i]]["trail_pct"]
@@ -558,7 +560,24 @@ def run():
             ticker_dict[tickers[i]]["condition5x"] = bool(condition5x)
             condition6x = "P" in exit_symbol.split("_")[1] if "_" in exit_symbol else False
             ticker_dict[tickers[i]]["condition6x"] = bool(condition6x)
-            condition7x = ticker_dict[tickers[i]]["bullish_candle1"]
+            indicator_bools = []
+            for indicator in indicator_options:
+                if indicator in indicator_exit:
+                    if indicator == "Candles":
+                        indicator_bools.append(ticker_dict[tickers[i]]["bullish_candle1"])
+                    elif indicator == "HMA":
+                        indicator_bools.append(ticker_dict[tickers[i]]["bullish_hma1"])
+                    elif indicator == "EMA":
+                        indicator_bools.append(ticker_dict[tickers[i]]["bullish_ema1"])
+            if indicator_bools == []:
+                print("Error: No indicators")
+                condition7x = None
+            elif indicator_bools == [False] * len(indicator_bools): # Everything is bearish
+                condition7x = False
+            elif indicator_bools == [True] * len(indicator_bools): # Everything is bullish
+                condition7x = True
+            else: 
+                condition7x = None
             ticker_dict[tickers[i]]["condition7x"] = bool(condition7x)
             confirm_time = ticker_dict[tickers[i]]["confirm_time"]
             confirm_unit = ticker_dict[tickers[i]]["confirm_unit"]
@@ -615,10 +634,10 @@ def run():
                         exit_log = exit_log + f" gainloss {gainloss} > take_profit {take_profit}"
                 elif call_exit:
                     tda_symbols_held.remove(tickers[i])
-                    exit_log = exit_log + f" bearish candle while holding call"
+                    exit_log = exit_log + f" indicators {indicator_exit} being bearish while holding call"
                 elif put_exit:
                     tda_symbols_held.remove(tickers[i])
-                    exit_log = exit_log + f" bullish candle while holding put"
+                    exit_log = exit_log + f" indicators {indicator_exit} being bullish candle while holding put"
                 print(exit_log)
 
         # Checkpoint exits
@@ -662,6 +681,7 @@ def run():
 
         order_type = ticker_dict[tickers[i]]["order_type"]
         option_type = ticker_dict[tickers[i]]["option_type"]
+        indicator_entry = ticker_dict[tickers[i]]["indicator_entry"]
         mid = ticker_dict[tickers[i]]["mid"]
         if ticker_dict[tickers[i]]["use_close"]:
             bullish_candle = ticker_dict[tickers[i]]["bullish_candle2"]
@@ -720,12 +740,24 @@ def run():
             condition4e = True
             print("Unrecognized wick requirement")
         ticker_dict[tickers[i]]["condition4e"] = bool(condition4e)
-        if ticker_dict[tickers[i]]["indicator"] == "HMA":
-            condition5e = bullish_hma
-        elif ticker_dict[tickers[i]]["indicator"] == "EMA":
-            condition5e = bullish_ema
-        else:
-            print("Unrecognized indicator")
+        indicator_bools = []
+        for indicator in indicator_options:
+            if indicator in indicator_entry:
+                if indicator == "Candles":
+                    indicator_bools.append(bullish_candle)
+                elif indicator == "HMA":
+                    indicator_bools.append(bullish_hma)
+                elif indicator == "EMA":
+                    indicator_bools.append(bullish_ema)
+        if indicator_bools == []:
+            print("Error: No indicators")
+            condition5e = None
+        elif indicator_bools == [False] * len(indicator_bools): # Everything is bearish
+            condition5e = False
+        elif indicator_bools == [True] * len(indicator_bools): # Everything is bullish
+            condition5e = True
+        else: 
+            condition5e = None
         ticker_dict[tickers[i]]["condition5e"] = bool(condition5e)
         condition6e = tickers[i] not in recent_tickers
         ticker_dict[tickers[i]]["condition6e"] = bool(condition6e)

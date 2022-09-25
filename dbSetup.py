@@ -74,80 +74,91 @@ for i in range(len(config_keys)):
 # Setup tickers database
 
 tickers = ["F", "LCID"]
-period_types = ["day"] * len(tickers)
-periods = [10] * len(tickers)
-frequency_types = ["minute"] * len(tickers)
-frequencies = [5] * len(tickers)
+# Market data
+use_closes = [False] * len(tickers)
 extended_hours = [False] * len(tickers)
+frequencies = [5] * len(tickers)
+frequency_types = ["minute"] * len(tickers)
+periods = [10] * len(tickers)
+period_types = ["day"] * len(tickers)
+# Candles
+candle_types = ["Heikin Ashi"] * len(tickers)
+wick_requirements = ["Any wick okay"] * len(tickers)
+# Indicators
+indicators_entry = [["HMA", "EMA"]] * len(tickers)
+indicators_exit = [["HMA", "EMA"]] * len(tickers)
 ema_lengths = [100] * len(tickers)
 hma_lengths = [7] * len(tickers)
+# Option contract
+order_types = ["MARKET"] * len(tickers)
+option_types = ["Both calls and puts"] * len(tickers)
 contracts = [1] * len(tickers)
-stoplosses = [1000] * len(tickers)
-stoploss_pcts = [10] * len(tickers)
-trail_pcts = [10] * len(tickers)
-stoploss_types = ["Fixed $"] * len(tickers)
-dte_mins = [0] * len(tickers)
 delta_mins = [50] * len(tickers)
-maxes = [0] * len(tickers)
-mins = [0] * len(tickers)
-trigger_trail_types = ["Fixed $"] * len(tickers)
-trigger_trails = [100000] * len(tickers)
-trigger_trail_pcts = [100] * len(tickers)
-trigger_trail_trail_pcts = [100] * len(tickers)
-triggereds = [False] * len(tickers)
-take_profits = [1000] * len(tickers)
-take_profit_pcts = [100] * len(tickers)
-take_profit_types = ["Fixed $"] * len(tickers)
+dte_mins = [0] * len(tickers)
+# Time
 confirm_times = [5] * len(tickers)
 confirm_units = ["second"] * len(tickers)
 pause_times = [5] * len(tickers)
 pause_units = ["minute"] * len(tickers)
+# Stoploss
+stoploss_types = ["Fixed $"] * len(tickers)
+stoplosses = [1000] * len(tickers)
+stoploss_pcts = [10] * len(tickers)
+trail_pcts = [10] * len(tickers)
+# Take profit
+take_profit_types = ["Fixed $"] * len(tickers)
+take_profits = [1000] * len(tickers)
+take_profit_pcts = [100] * len(tickers)
+# Trailing triggers
+trigger_trail_types = ["Fixed $"] * len(tickers)
+trigger_trails = [100000] * len(tickers)
+trigger_trail_pcts = [100] * len(tickers)
+trigger_trail_trail_pcts = [100] * len(tickers)
+# Other
+maxes = [0] * len(tickers)
+mins = [0] * len(tickers)
 times_in_candles = [0] * len(tickers)
-indicators = ["HMA"] * len(tickers)
-use_closes = [False] * len(tickers)
-wick_requirements = ["Any wick okay"] * len(tickers)
-candle_types = ["Heikin Ashi"] * len(tickers)
-order_types = ["MARKET"] * len(tickers)
-option_types = ["Both calls and puts"] * len(tickers)
+triggereds = [False] * len(tickers)
 
 for i in range(len(tickers)):
     entry = {
-        "key": tickers[i], 
-        "period_type": period_types[i], 
-        "period": periods[i],
+        "candle_type": candle_types[i],
+        "confirm_time": confirm_times[i],
+        "confirm_unit": confirm_units[i],
+        "contracts": contracts[i],
+        "delta_min": delta_mins[i],
+        "dte_min": dte_mins[i],
+        "ema_length": ema_lengths[i],
+        "extended_hours": extended_hours[i],
         "frequency_type": frequency_types[i],
         "frequency": frequencies[i],
-        "extended_hours": extended_hours[i],
-        "ema_length": ema_lengths[i],
         "hma_length": hma_lengths[i],
-        "contracts": contracts[i],
+        "indicator_entry": indicators_entry[i],
+        "indicator_exit": indicators_exit[i],
+        "key": tickers[i], 
+        "max": maxes[i],
+        "min": mins[i],
+        "option_type": option_types[i],
+        "order_type": order_types[i],
+        "pause_time": pause_times[i],
+        "pause_unit": pause_units[i],
+        "period_type": period_types[i], 
+        "period": periods[i],
         "stoploss": stoplosses[i],
         "stoploss_pct": stoploss_pcts[i],
         "stoploss_type": stoploss_types[i],
+        "take_profit": take_profits[i],
+        "take_profit_pct": take_profit_pcts[i],
+        "take_profit_type": take_profit_types[i],
         "trail_pct": trail_pcts[i],
-        "dte_min": dte_mins[i],
-        "delta_min": delta_mins[i],
-        "max": maxes[i],
-        "min": mins[i],
         "trigger_trail": trigger_trails[i],
         "trigger_trail_pct": trigger_trail_pcts[i],
         "trigger_trail_trail_pct": trigger_trail_trail_pcts[i],
         "trigger_trail_type": trigger_trail_types[i],
         "triggered": triggereds[i],
-        "take_profit": take_profits[i],
-        "take_profit_pct": take_profit_pcts[i],
-        "take_profit_type": take_profit_types[i],
-        "confirm_time": confirm_times[i],
-        "confirm_unit": confirm_units[i],
-        "pause_time": pause_times[i],
-        "pause_unit": pause_units[i],
         "time_in_candle": times_in_candles[i],
-        "indicator": indicators[i],
         "use_close": use_closes[i],
         "wick_requirement": wick_requirements[i],
-        "candle_type": candle_types[i],
-        "order_type": order_types[i],
-        "option_type": option_types[i],
     }
     tickers_db.put(entry)
 

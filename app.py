@@ -564,7 +564,7 @@ if auth:
 
                 values = tickers_db.get(ticker)
                 values1 = checkpoints_db.get(ticker)
-                indicator_options = ["HMA", "EMA"]
+                indicator_options = ["HMA", "EMA", "Candles"]
                 candle_type_options = ["Heikin Ashi", "Normal"]
                 confirm_unit_options = ["second", "minute", "hour"]
                 frequency_type_options = ["minute", "daily", "weekly", "monthly"]
@@ -629,11 +629,17 @@ if auth:
                                 index = wick_options.index(values['wick_requirement'])
                             )
                         with st.expander("Indicators"):
-                            indicator = st.selectbox(
-                                label = "Indicator",
-                                help = "The indicator the bot will use to enter or exit trades",
+                            indicator_entry = st.multiselect(
+                                label = "Entry indicators",
+                                help = "The indicators used to trigger entries (uses AND logic, meaning all conditions must be met)",
                                 options = indicator_options,
-                                index = indicator_options.index(values['indicator'].upper()),
+                                default = values["indicator_entry"]
+                            )
+                            indicator_exit = st.multiselect(
+                                label = "Exit indicators",
+                                help = "The indicators used to trigger exits (uses AND logic, meaning all conditions must be met)",
+                                options = indicator_options,
+                                default = values["indicator_exit"]
                             )
                             ema_length = st.number_input(
                                 label = "EMA length",
@@ -811,7 +817,8 @@ if auth:
                                 "frequency_type": frequency_type,
                                 "frequency": frequency,
                                 "hma_length": hma_length,
-                                "indicator": indicator,
+                                "indicator_entry": indicator_entry,
+                                "indicator_exit": indicator_exit,
                                 "key": ticker,
                                 "max": values['max'],
                                 "min": values['min'],

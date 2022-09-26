@@ -794,9 +794,10 @@ def run():
         checkpoints_db.put(checkpoint_db_dict[tickers[i]])                                                   
         t = threading.Thread(target=strategy, args=(tickers,i)) 
         threads.append(t)
-        threads[-1].start()                                     
-    for t in threads:
-        t.join()                                                                          
+        threads[-1].start()
+        threads[-1].join()                                
+    # for t in threads:
+    #     t.join()                                                                          
 
     # Print log
 

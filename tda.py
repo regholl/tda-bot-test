@@ -213,6 +213,8 @@ def get_positions_tda():
     tda_positions_request = requests.get(tda_positions_url, headers = tda_headers)
     tda_positions_content = json.loads(tda_positions_request.content)
     positions = []
+    if 'securitiesAccount' not in tda_positions_content:
+        print(tda_positions_content)
     if 'positions' in tda_positions_content['securitiesAccount']:
         positions = tda_positions_content['securitiesAccount']['positions']
     # else:
@@ -257,7 +259,11 @@ def get_orders2_tda():
     tda_orders_request = requests.get(tda_orders_url, headers = tda_headers)
     tda_orders_content = json.loads(tda_orders_request.content)
     orders = []
-    if 'orderStrategies' in tda_orders_content['securitiesAccount']:
+    if 'securitiesAccount' not in tda_orders_content:
+        print(tda_orders_content)
+    if 'orderStrategies' not in tda_orders_content['securitiesAccount']:
+        print(tda_orders_content['securitiesAccount'])
+    else:
         orders = tda_orders_content['securitiesAccount']['orderStrategies']
     return orders
 

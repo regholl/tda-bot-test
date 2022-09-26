@@ -228,6 +228,8 @@ def get_positions_tda():
     #         "marketValue": 0,
     #         "currentDayProfitLossPercentage": 0
     #     }]
+    if "instrument" not in list(positions[0].keys()):
+        print(positions)
     return positions
 
 def get_orders_tda():
@@ -250,6 +252,8 @@ def get_orders_tda():
         }]
     else:
         orders = [item for item in tda_history_content if item['type'] == 'TRADE']
+    if 'orderDate' not in list(orders[0].keys()):
+        print(orders)
     return orders
 
 def get_orders2_tda():

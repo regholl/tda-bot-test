@@ -252,8 +252,9 @@ def get_orders_tda():
         }]
     else:
         orders = [item for item in tda_history_content if item['type'] == 'TRADE']
-    if 'orderDate' not in list(orders[0].keys()):
-        print(orders)
+    orders = [item for item in orders if "orderDate" in list(item.keys())]
+    orders = [item for item in orders if "transactionItem" in list(item.keys())]
+    orders = [item for item in orders if "instrument" in list(item["transactionItem"].keys())]
     return orders
 
 def get_orders2_tda():

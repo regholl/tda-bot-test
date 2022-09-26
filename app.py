@@ -276,7 +276,13 @@ if auth:
         orders1 = []
         for order in orders:
             order_dict = {}
-            order_dict["Datetime"] = pd.Timestamp(order["orderDate"], tz=utc).astimezone(local_timezone).strftime("%m/%d/%Y %X")
+            if "orderDate" in list(order.keys()):
+                date1 = order["orderDate"]
+            elif "transactionDate" in list(order.keys()):
+                date1 = order["transactionDate"]
+            else:
+                print("Error: No order date found")
+            order_dict["Datetime"] = pd.Timestamp(date1, tz=utc).astimezone(local_timezone).strftime("%m/%d/%Y %X")
             order_dict["Symbol"] = order["transactionItem"]["instrument"]["symbol"]
             order_dict["Side"] = order["transactionItem"]["instruction"]
             order_dict["Quantity"] = int(order["transactionItem"]["amount"])

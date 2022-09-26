@@ -228,7 +228,7 @@ def get_positions_tda():
     #         "marketValue": 0,
     #         "currentDayProfitLossPercentage": 0
     #     }]
-    if "instrument" not in list(positions[0].keys()):
+    if positions != [] and "instrument" not in list(positions[0].keys()):
         print(positions)
     return positions
 

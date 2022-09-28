@@ -18,6 +18,8 @@ log_count = 0
 error_streak = 0
 bot_on_last = False
 cp = 10
+ticker_db_dict = {}
+checkpoint_db_dict = {}
 
 # Define the strategy function which will run a loop
 
@@ -54,7 +56,9 @@ def run():
     checkpoints_db = deta.Base("checkpoints_db")
     checkpoints_info = checkpoints_db.fetch().items
     indicator_options = ["HMA", "EMA", "Candles"]
-    ticker_dict, ticker_db_dict, checkpoint_db_dict = {}, {}, {}
+    ticker_dict = {}
+    global ticker_db_dict
+    global checkpoint_db_dict
     for i in range(len(tickers)):
         ticker_dict[tickers[i]] = tickers_info[i]
         ticker_db_dict[tickers[i]] = tickers_info[i].copy()
@@ -415,9 +419,10 @@ def run():
         if trigger_trail_type == "Fixed $":
             if (tda_gainloss > trigger_trail or triggered == True) and tickers[i] in tda_symbols_held:
                 tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] + trigger_trail, 2)
-                if ticker_dict[tickers[i]]["triggered"] != True:
+                if triggered != True:
                     print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered on ticker {tickers[i]} due to \
                             gainloss {tda_gainloss} > trigger_trail {trigger_trail}")
+                    triggered = True
                     ticker_dict[tickers[i]]["triggered"] = True
                     entry["triggered"] = True
                     # entry["costbasis"] = tda_costbasis
@@ -427,16 +432,18 @@ def run():
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
             elif tickers[i] not in tda_symbols_held:
-                if ticker_dict[tickers[i]]["triggered"] == True:
+                if triggered == True:
                     print(f"Ticker {tickers[i]} not found, triggered set to False")
+                    triggered = False
                     ticker_dict[tickers[i]]["triggered"] = False
                     entry["triggered"] = False
         elif trigger_trail_type == "Fixed %":
             if (tda_gainloss_pct > trigger_trail_pct or triggered == True) and tickers[i] in tda_symbols_held:
                 tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
-                if ticker_dict[tickers[i]]["triggered"] != True:
+                if triggered != True:
                     print(f"Trailing stop loss of {trigger_trail_trail_pct}% triggered on ticker {tickers[i]} due to \
                             gainloss of {tda_gainloss_pct}% > {trigger_trail_pct}%")
+                    triggered = True
                     ticker_dict[tickers[i]]["triggered"] = True
                     entry["triggered"] = True
                     # entry["costbasis"] = tda_costbasis
@@ -446,8 +453,9 @@ def run():
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
             elif tickers[i] not in tda_symbols_held:
-                if ticker_dict[tickers[i]]["triggered"] == True:
+                if triggered == True:
                     print(f"Ticker {tickers[i]} not found, triggered set to False")
+                    triggered = False
                     ticker_dict[tickers[i]]["triggered"] = False
                     entry["triggered"] = False
         elif trigger_trail_type == "None":
@@ -784,7 +792,7 @@ def run():
         ticker_db_dict[tickers[i]] = entry
         checkpoint_db_dict[tickers[i]] = values1
 
-        # End function
+        # End strategy() function
 
     # Multi-thread and update database
 
@@ -833,6 +841,8 @@ def run():
     # Since the bot made it to the end of the script successfully, reset error streak to 0
 
     error_streak = 0
+
+    # End run() function
 
 # Run the entire script in a continuous loop
 

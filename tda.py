@@ -267,7 +267,8 @@ def get_orders2_tda():
     if 'securitiesAccount' not in tda_orders_content:
         print(tda_orders_content)
     if 'orderStrategies' not in tda_orders_content['securitiesAccount']:
-        print(tda_orders_content['securitiesAccount'])
+        orders = orders
+        # print(tda_orders_content['securitiesAccount'])
     else:
         orders = tda_orders_content['securitiesAccount']['orderStrategies']
     return orders

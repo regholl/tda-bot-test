@@ -214,7 +214,8 @@ def get_positions_tda():
     tda_positions_content = json.loads(tda_positions_request.content)
     positions = []
     if 'securitiesAccount' not in tda_positions_content:
-        print(tda_positions_content)
+        positions = positions
+        # print(tda_positions_content)
     if 'positions' in tda_positions_content['securitiesAccount']:
         positions = tda_positions_content['securitiesAccount']['positions']
     # else:
@@ -229,7 +230,8 @@ def get_positions_tda():
     #         "currentDayProfitLossPercentage": 0
     #     }]
     if positions != [] and "instrument" not in list(positions[0].keys()):
-        print(positions)
+        positions = positions
+        # print(positions)
     return positions
 
 def get_orders_tda():
@@ -265,7 +267,8 @@ def get_orders2_tda():
     tda_orders_content = json.loads(tda_orders_request.content)
     orders = []
     if 'securitiesAccount' not in tda_orders_content:
-        print(tda_orders_content)
+        orders = orders
+        # print(tda_orders_content)
     if 'orderStrategies' not in tda_orders_content['securitiesAccount']:
         orders = orders
         # print(tda_orders_content['securitiesAccount'])

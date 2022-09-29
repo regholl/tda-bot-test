@@ -7,6 +7,8 @@ from db import *
 import math
 import numpy as np
 import pandas as pd
+import pytz
+from stop import *
 import ta
 from tda import *
 import threading
@@ -17,7 +19,10 @@ import time
 log_count = 0
 error_streak = 0
 bot_on_last = False
+down_for_day = False
 cp = 10
+utc = pytz.timezone("UTC")
+local_timezone = pytz.timezone("US/Pacific")
 ticker_db_dict = {}
 checkpoint_db_dict = {}
 
@@ -42,6 +47,17 @@ def run():
     bot_on_last = bot_on
     if bot_on == False:
         return False
+
+    # Check if it's after-hours and time to shut down
+
+    start_local = pd.Timestamp(time_start, unit="s", tz=utc).astimezone(local_timezone)
+    time_cutoff = dt.datetime(year=start_local.year, month=start_local.month, day=start_local.day, hour=13, minute=1) 
+    time_cutoff = pd.Timestamp(time_cutoff, tz=local_timezone)
+    global down_for_day
+    if start_local > time_cutoff and down_for_day == False:
+        print(f"{start_local} > {time_cutoff}, shutting down...")
+        down_for_day = True
+        stop()
 
     # Error counter
 

@@ -8,7 +8,6 @@ import math
 import numpy as np
 import pandas as pd
 import pytz
-from stop import stop
 import ta
 from tda import *
 import threading
@@ -58,6 +57,7 @@ def run():
     if start_local > time_cutoff and down_for_day == False:
         print(f"{start_local} > {time_cutoff}, shutting down...")
         down_for_day = True
+        from stop import stop
         stop()
 
     # Error counter

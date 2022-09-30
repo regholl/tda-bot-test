@@ -309,7 +309,7 @@ def run():
         ticker_dict[tickers[i]]["bullish_candle2"] = bullish_candle2
         candle_body2 = abs(last_close2 - last_open2)
         candle_wick_top2 = last_high2 - max(last_close2, last_open2)
-        candle_wick_bottom2 = min(last_close2, last_high2) - last_low2
+        candle_wick_bottom2 = min(last_close2, last_open2) - last_low2
 
         if candle_wick_top2 + candle_wick_bottom2 > candle_body2:
             doji_candle2 = True

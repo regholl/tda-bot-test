@@ -278,7 +278,7 @@ def run():
         ticker_dict[tickers[i]]["bullish_candle1"] = bullish_candle1
         candle_body1 = abs(last_close1 - last_open1)
         candle_wick_top1 = last_high1 - max(last_close1, last_open1)
-        candle_wick_bottom1 = min(last_close1, last_high1) - last_low1
+        candle_wick_bottom1 = min(last_close1, last_open1) - last_low1
 
         if candle_wick_top1 + candle_wick_bottom1 > candle_body1 * 2:
             doji_candle1 = True
@@ -662,7 +662,7 @@ def run():
                     exit_log = exit_log + f" indicators {indicator_exit} being bearish while holding call"
                 elif put_exit:
                     tda_symbols_held.remove(tickers[i])
-                    exit_log = exit_log + f" indicators {indicator_exit} being bullish candle while holding put"
+                    exit_log = exit_log + f" indicators {indicator_exit} being bullish while holding put"
                 print(exit_log)
 
         # Checkpoint exits

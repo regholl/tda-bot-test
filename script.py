@@ -8,7 +8,7 @@ import math
 import numpy as np
 import pandas as pd
 import pytz
-from stop import *
+from stop import stop
 import ta
 from tda import *
 import threading
@@ -54,6 +54,7 @@ def run():
     time_cutoff = dt.datetime(year=start_local.year, month=start_local.month, day=start_local.day, hour=13, minute=1) 
     time_cutoff = pd.Timestamp(time_cutoff, tz=local_timezone)
     global down_for_day
+    heroku_token = config_db.get("HEROKU_API")['value']
     if start_local > time_cutoff and down_for_day == False:
         print(f"{start_local} > {time_cutoff}, shutting down...")
         down_for_day = True

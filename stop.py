@@ -10,11 +10,11 @@ from db import *
 
 deta = connect_db()
 config_db = deta.Base("config_db")
-heroku_token = config_db.get("HEROKU_API")['value']
 
 # Get a list of all dynos
 
 def stop():
+    heroku_token = config_db.get("HEROKU_API")['value']
     heroku_url = 'https://api.heroku.com'
     apps_url = '{}/apps'.format(heroku_url)
     app_name = 'the-process'

@@ -38,8 +38,10 @@ def run():
     start_local = pd.Timestamp(time_start, unit="s", tz=utc).astimezone(local_timezone)
     time_cutoff = dt.datetime(year=start_local.year, month=start_local.month, day=start_local.day, hour=13, minute=1) 
     time_cutoff = pd.Timestamp(time_cutoff, tz=local_timezone)
-    global down_for_day
+    deta = connect_db()
+    config_db = deta.Base("config_db")
     heroku_token = config_db.get("HEROKU_API")['value']
+    global down_for_day
     if start_local > time_cutoff and down_for_day == False:
         print(f"{start_local} > {time_cutoff}, shutting down...")
         down_for_day = True
@@ -48,8 +50,6 @@ def run():
 
     # Check if bot is on
 
-    deta = connect_db()
-    config_db = deta.Base("config_db")
     bot_on = bool(config_db.get("BOT_ON")['value'])
     global bot_on_last
     if bot_on_last == True and bot_on == False:

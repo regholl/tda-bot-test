@@ -33,6 +33,19 @@ def run():
 
     time_start = time.time()
 
+    # Check if it's after-hours and time to shut down
+
+    start_local = pd.Timestamp(time_start, unit="s", tz=utc).astimezone(local_timezone)
+    time_cutoff = dt.datetime(year=start_local.year, month=start_local.month, day=start_local.day, hour=13, minute=1) 
+    time_cutoff = pd.Timestamp(time_cutoff, tz=local_timezone)
+    global down_for_day
+    heroku_token = config_db.get("HEROKU_API")['value']
+    if start_local > time_cutoff and down_for_day == False:
+        print(f"{start_local} > {time_cutoff}, shutting down...")
+        down_for_day = True
+        from stop import stop
+        stop()
+
     # Check if bot is on
 
     deta = connect_db()
@@ -46,19 +59,6 @@ def run():
     bot_on_last = bot_on
     if bot_on == False:
         return False
-
-    # Check if it's after-hours and time to shut down
-
-    start_local = pd.Timestamp(time_start, unit="s", tz=utc).astimezone(local_timezone)
-    time_cutoff = dt.datetime(year=start_local.year, month=start_local.month, day=start_local.day, hour=13, minute=1) 
-    time_cutoff = pd.Timestamp(time_cutoff, tz=local_timezone)
-    global down_for_day
-    heroku_token = config_db.get("HEROKU_API")['value']
-    if start_local > time_cutoff and down_for_day == False:
-        print(f"{start_local} > {time_cutoff}, shutting down...")
-        down_for_day = True
-        from stop import stop
-        stop()
 
     # Error counter
 

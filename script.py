@@ -822,9 +822,10 @@ def run():
         t = threading.Thread(target=strategy, args=(tickers,i)) 
         threads.append(t)
         threads[-1].start()
-        threads[-1].join()                                
-    # for t in threads:
-    #     t.join()                                                                          
+        time.sleep(1)
+        # threads[-1].join()                                
+    for t in threads:
+        t.join()                                                                          
 
     # Print log
 

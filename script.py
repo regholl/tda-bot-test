@@ -484,10 +484,12 @@ def run():
 
         for j in range(cp):
             if tickers[i] in tda_symbols_held and ticker_dict[tickers[i]][f"checkpoint_on{j}"]:
-                if ticker_dict[tickers[i]]["gainloss"] > ticker_dict[tickers[i]][f"activation_value{j}"] \
-                and ticker_dict[tickers[i]][f"activated{j}"] != True:
+                gl = ticker_dict[tickers[i]]["gainloss"]
+                av = ticker_dict[tickers[i]][f"activation_value{j}"]
+                if gl > av and ticker_dict[tickers[i]][f"activated{j}"] != True:
                     ticker_dict[tickers[i]][f"activated{j}"] = True
                     values1[f"activated{j}"] = True
+                    print(f"Ticker {tickers[i]} gainloss {gl} > activation_value {av} -> checkpoint {j} activated")
             else:
                 if ticker_dict[tickers[i]][f"activated{j}"] != False:
                     ticker_dict[tickers[i]][f"activated{j}"] = False
@@ -642,7 +644,6 @@ def run():
             ticker_dict[tickers[i]]["any_exit"] = bool(any_exit)
             if any_exit:
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol, orderType=order_type, limit_price=mid)
-                print(json.dumps(ticker_dict, indent=4))
                 entry["triggered"] = False
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
@@ -664,6 +665,7 @@ def run():
                     tda_symbols_held.remove(tickers[i])
                     exit_log = exit_log + f" indicators {indicator_exit} being bullish while holding put"
                 print(exit_log)
+                print(json.dumps(ticker_dict[tickers[i]], indent=4))
 
         # Checkpoint exits
 
@@ -683,20 +685,20 @@ def run():
                     exit_order = tda_submit_order("SELL_TO_CLOSE", qty, exit_symbol, orderType=order_type, limit_price=mid)
                     print(f"{qty} contracts of {tickers[i]} closed out due to checkpoint: \
                             exit_value {exit_value} > gainloss {gainloss}")
-                    print(json.dumps(ticker_dict, indent=4))
+                    print(json.dumps(ticker_dict[tickers[i]], indent=4))
                     break
                 if gain_type == "Fixed $":
                     if gain_amount > gainloss:
                         exit_order = tda_submit_order("SELL_TO_CLOSE", qty2, exit_symbol, orderType=order_type, limit_price=mid)
                         print(f"{qty2} contracts of {tickers[i]} closed out due to checkpoint: \
                                 gain_amount {gain_amount} > gainloss {gainloss}")
-                        print(json.dumps(ticker_dict, indent=4))
+                        print(json.dumps(ticker_dict[tickers[i]], indent=4))
                 elif gain_type == "Fixed %":
                     if gain_pct > gainloss_pct:
                         exit_order = tda_submit_order("SELL_TO_CLOSE", qty2, exit_symbol, orderType=order_type, limit_price=mid)
                         print(f"{qty2} contracts of {tickers[i]} closed out due to checkpoint: \
                                 gain_pct {gain_pct} > gainloss_pct {gainloss_pct}")
-                        print(json.dumps(ticker_dict, indent=4))
+                        print(json.dumps(ticker_dict[tickers[i]], indent=4))
                 elif gain_type == "None":
                     exit_order = ""
                 else:
@@ -796,13 +798,13 @@ def run():
             # entry_symbol = entry_symbol.split("_")[0]
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bullish entry: Buying {contracts} contracts of {entry_symbol}")
-            print(json.dumps(ticker_dict, indent=4))
+            print(json.dumps(ticker_dict[tickers[i]], indent=4))
         if bearish_entry:
             entry_symbol = ticker_dict[tickers[i]]["chain"]["put"]
             # entry_symbol = entry_symbol.split("_")[0]
             entry_order = tda_submit_order("BUY_TO_OPEN", contracts, entry_symbol, orderType=order_type, limit_price=mid)
             print(f"Bearish entry: Buying {contracts} contracts of {entry_symbol}")
-            print(json.dumps(ticker_dict, indent=4))
+            print(json.dumps(ticker_dict[tickers[i]], indent=4))
 
         # Update dictionary
 

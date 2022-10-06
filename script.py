@@ -79,7 +79,7 @@ def run():
     for i in range(len(tickers)):
         ticker_dict[tickers[i]] = tickers_info[i]
         ticker_db_dict[tickers[i]] = tickers_info[i].copy()
-        checkpoint_db_dict[tickers[i]] = checkpoints_info[i]
+        checkpoint_db_dict[tickers[i]] = checkpoints_info[i].copy()
         ticker_dict[tickers[i]]["option_symbol"] = tickers[i]
         ticker_dict[tickers[i]]["average_price"] = 0
         ticker_dict[tickers[i]]["market_value"] = 0
@@ -160,8 +160,8 @@ def run():
 
         # Get database entry
 
-        entry = ticker_db_dict[tickers[i]]
-        values1 = checkpoint_db_dict[tickers[i]]
+        t_entry = ticker_db_dict[tickers[i]]
+        c_entry = checkpoint_db_dict[tickers[i]]
     
         # Get quotes for underlying
 
@@ -441,10 +441,10 @@ def run():
                             gainloss {tda_gainloss} > trigger_trail {trigger_trail}")
                     triggered = True
                     ticker_dict[tickers[i]]["triggered"] = True
-                    entry["triggered"] = True
-                    # entry["costbasis"] = tda_costbasis
-                    # entry["stoploss_type"] = "Trailing %"
-                    # entry["trail_pct"] = trigger_trail_trail_pct
+                    t_entry["triggered"] = True
+                    # t_entry["costbasis"] = tda_costbasis
+                    # t_entry["stoploss_type"] = "Trailing %"
+                    # t_entry["trail_pct"] = trigger_trail_trail_pct
                 ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
@@ -453,7 +453,7 @@ def run():
                     print(f"Ticker {tickers[i]} not found, triggered set to False")
                     triggered = False
                     ticker_dict[tickers[i]]["triggered"] = False
-                    entry["triggered"] = False
+                    t_entry["triggered"] = False
         elif trigger_trail_type == "Fixed %":
             if (tda_gainloss_pct > trigger_trail_pct or triggered == True) and tickers[i] in tda_symbols_held:
                 tda_costbasis = np.round(ticker_dict[tickers[i]]["costbasis"] * (1 + trigger_trail_pct / 100), 2)
@@ -462,10 +462,10 @@ def run():
                             gainloss of {tda_gainloss_pct}% > {trigger_trail_pct}%")
                     triggered = True
                     ticker_dict[tickers[i]]["triggered"] = True
-                    entry["triggered"] = True
-                    # entry["costbasis"] = tda_costbasis
-                    # entry["stoploss_type"] = "Trailing %"
-                    # entry["trail_pct"] = trigger_trail_trail_pct
+                    t_entry["triggered"] = True
+                    # t_entry["costbasis"] = tda_costbasis
+                    # t_entry["stoploss_type"] = "Trailing %"
+                    # t_entry["trail_pct"] = trigger_trail_trail_pct
                 ticker_dict[tickers[i]]["costbasis"] = tda_costbasis
                 ticker_dict[tickers[i]]["stoploss_type"] = "Trailing %"
                 ticker_dict[tickers[i]]["trail_pct"] = trigger_trail_trail_pct
@@ -474,11 +474,11 @@ def run():
                     print(f"Ticker {tickers[i]} not found, triggered set to False")
                     triggered = False
                     ticker_dict[tickers[i]]["triggered"] = False
-                    entry["triggered"] = False
+                    t_entry["triggered"] = False
         elif trigger_trail_type == "None":
-            entry = entry
+            t_entry = t_entry
         else:
-            print("Unrecognized trigger_trail_type")
+            print("Error: Unrecognized trigger_trail_type")
 
         # Activate checkpoints based on gainloss
 
@@ -488,12 +488,12 @@ def run():
                 av = ticker_dict[tickers[i]][f"activation_value{j}"]
                 if gl > av and ticker_dict[tickers[i]][f"activated{j}"] != True:
                     ticker_dict[tickers[i]][f"activated{j}"] = True
-                    values1[f"activated{j}"] = True
-                    print(f"Ticker {tickers[i]} gainloss {gl} > activation_value {av} -> checkpoint {j} activated")
+                    c_entry[f"activated{j}"] = True
+                    print(f"Ticker {tickers[i]} gainloss {gl} > activation_value{j} {av} --> checkpoint{j} activated")
             else:
                 if ticker_dict[tickers[i]][f"activated{j}"] != False:
                     ticker_dict[tickers[i]][f"activated{j}"] = False
-                    values1[f"activated{j}"] = False
+                    c_entry[f"activated{j}"] = False
 
         # Update max and min so drawdown can be tracked and trailing stops can execute
 
@@ -506,11 +506,15 @@ def run():
             maxi = 0
             mini = 0
         if maxi != ticker_dict[tickers[i]]["max"]:
-            entry["max"] = maxi
+            t_entry["max"] = maxi
             ticker_dict[tickers[i]]["max"] = maxi
+            if maxi == 0:
+                print(f"Ticker {tickers[i]} maxi reset to {maxi}")
         if mini != ticker_dict[tickers[i]]["min"]:
-            entry["min"] = mini
+            t_entry["min"] = mini
             ticker_dict[tickers[i]]["min"] = mini
+            if mini == 0:
+                print(f"Ticker {tickers[i]} mini reset to {mini}")
         
         # Get recent orders from TDA API, so we can determine recent tickers and implement a pause period on them
 
@@ -564,7 +568,7 @@ def run():
             elif ticker_dict[tickers[i]]["stoploss_type"] == "None":
                 condition3x = False
             else:
-                print("Unrecognized stoploss_type")
+                print("Error: Unrecognized stoploss_type")
             ticker_dict[tickers[i]]["condition3x"] = bool(condition3x)
             take_profit = ticker_dict[tickers[i]]["take_profit"]
             take_profit_pct = ticker_dict[tickers[i]]["take_profit_pct"]
@@ -575,7 +579,7 @@ def run():
             elif ticker_dict[tickers[i]]["take_profit_type"] == "None":
                 condition4x = False
             else:
-                print("Unrecognized take_profit_type")
+                print("Error: Unrecognized take_profit_type")
             ticker_dict[tickers[i]]["condition4x"] = bool(condition4x)
             exit_symbol = ticker_dict[tickers[i]]["option_symbol"]
             exit_quantity = ticker_dict[tickers[i]]["quantity"]
@@ -617,21 +621,21 @@ def run():
             else:
                 confirm_time = confirm_time
             curr_time = dt.datetime.now(tz=utc)
-            old_time = pd.Timestamp(ticker_db_dict[tickers[i]]['time_in_candle'], tz=utc)
+            old_time = pd.Timestamp(ticker_dict[tickers[i]]['time_in_candle'], tz=utc)
             if confirm_time in [0, None]:
                 condition8x = True
             elif old_time == 0:
                 condition8x = False
-                print(f"Starting timer on {tickers[i]}")
+                print(f"Confirming time on {tickers[i]}")
             else:
                 condition8x = curr_time > old_time + dt.timedelta(seconds=confirm_time)
             ticker_dict[tickers[i]]["condition8x"] = bool(condition8x)
             if condition8x:
                 ticker_dict[tickers[i]]["time_in_candle"] = 0
-                entry["time_in_candle"] = 0
+                t_entry["time_in_candle"] = 0
             else:
                 ticker_dict[tickers[i]]["time_in_candle"] = curr_time
-                entry["time_in_candle"] = curr_time
+                t_entry["time_in_candle"] = curr_time
             # if not ticker_dict[tickers[i]]["doji_candle1"]:
             call_exit = condition1 and condition2x and condition5x and not condition6x and condition7x==False and condition8x
             put_exit = condition1 and condition2x and not condition5x and condition6x and condition7x==True and condition8x
@@ -644,7 +648,7 @@ def run():
             ticker_dict[tickers[i]]["any_exit"] = bool(any_exit)
             if any_exit:
                 exit_order = tda_submit_order("SELL_TO_CLOSE", exit_quantity, exit_symbol, orderType=order_type, limit_price=mid)
-                entry["triggered"] = False
+                t_entry["triggered"] = False
                 exit_log = f"Closing out {exit_quantity} contracts of {exit_symbol} due to"
                 if stoploss_exit:
                     if ticker_dict[tickers[i]]["stoploss_type"] == "Trailing %":
@@ -702,7 +706,7 @@ def run():
                 elif gain_type == "None":
                     exit_order = ""
                 else:
-                    print("Unrecognized gain_type")     
+                    print("Error: Unrecognized gain_type")     
 
         # Entry order
 
@@ -765,7 +769,7 @@ def run():
                     condition4e = True
         else:
             condition4e = True
-            print("Unrecognized wick requirement")
+            print("Error: Unrecognized wick requirement")
         ticker_dict[tickers[i]]["condition4e"] = bool(condition4e)
         indicator_bools = []
         for indicator in indicator_options:
@@ -808,24 +812,24 @@ def run():
 
         # Update dictionary
 
-        ticker_db_dict[tickers[i]] = entry
-        checkpoint_db_dict[tickers[i]] = values1
+        ticker_db_dict[tickers[i]] = t_entry
+        checkpoint_db_dict[tickers[i]] = c_entry
 
         # End strategy() function
 
     # Multi-thread and update database
 
     threads = []       
-    for i in range(len(tickers)): 
-        tickers_db.put(ticker_db_dict[tickers[i]])
-        checkpoints_db.put(checkpoint_db_dict[tickers[i]])                                                   
+    for i in range(len(tickers)):
+        time.sleep(1)                          
         t = threading.Thread(target=strategy, args=(tickers,i)) 
         threads.append(t)
         threads[-1].start()
-        time.sleep(1)
         # threads[-1].join()                                
-    for t in threads:
-        t.join()                                                                          
+    for i in range(len(threads)):
+        threads[i].join()
+        tickers_db.put(ticker_db_dict[tickers[i]])
+        checkpoints_db.put(checkpoint_db_dict[tickers[i]])                                                                           
 
     # Print log
 

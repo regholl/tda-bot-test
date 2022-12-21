@@ -44,16 +44,16 @@ for key in keys:
 
 # Define user properties and insert into database
 
-usernames = ["will", "tyler"]
-names = ["Will", "Tyler"]
-passwords = ["tradebot", "tdabot"]
-hashed_passwords = stauth.Hasher(passwords).generate() # Encrypt passwords
+usernames = ["reggie"]
+names = ["Reggie"]
+passwords = ["tradebot"]
+#hashed_passwords = stauth.Hasher(passwords).generate() # Encrypt passwords
 
 for i in range(len(usernames)):
     entry = {
         "key": usernames[i], 
         "name": names[i], 
-        "password": hashed_passwords[i]
+        "password": passwords[i]
     }
     users_db.put(entry)
 
@@ -62,7 +62,7 @@ for i in range(len(usernames)):
 config_keys = ["DETA_NAME", "HEROKU_API", "TDA_API", "TDA_REFRESH", "TDA_ACCOUNT"]
 config_values = [os.getenv(key) for key in config_keys]
 config_keys = config_keys + ["TDA_ACCESS", "TDA_LAST_ACCESS", "TDA_LAST_REFRESH", "TDA_ACCESS_LIMIT", "BOT_ON"]
-config_values = config_values + ["asfdasdf", "8/8/2022 20:54:30", "8/18/2022 19:08:26", "30", True]
+config_values = config_values + ["001Primo$$", "8/8/2022 20:54:30", "8/18/2022 19:08:26", "30", True]
 
 for i in range(len(config_keys)):
     entry = {
@@ -73,7 +73,7 @@ for i in range(len(config_keys)):
 
 # Setup tickers database
 
-tickers = ["F", "LCID"]
+tickers = ["M", "VORB"]
 # Market data
 use_closes = [False] * len(tickers)
 extended_hours = [False] * len(tickers)
